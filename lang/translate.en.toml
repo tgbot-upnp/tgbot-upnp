@@ -1,0 +1,39 @@
+[SystrayQuit]
+hash = "sha1-1a2285d8881f226e13430515a9dd2b9fb6294200"
+other = "Quit"
+
+[SystrayQuitTooltip]
+hash = "sha1-9911e92e81350237d54e470c1e6122fa94a7d968"
+other = "Quit tgbot-upnp"
+
+[TgBotAbout]
+hash = "sha1-a1b8a24eb760a6bcb5dd2446909b5187310fca47"
+other = "cast telegram videos to other devices through the upnp protocol. https://github.com/tgbot-upnp/tgbot-upnp"
+
+[TgBotAuthFailed]
+hash = "sha1-d747acd681fd72e61744de5d224013f5b667557b"
+other = "Your user ID: {{.userID}}\nYou are not the administrator of the current tgbot-upnp and cannot use this bot. You can contact the administrator to add your user ID to the administrator list, or deploy your own tgbot-upnp, details: https://github.com/tgbot-upnp/tgbot-upnp"
+
+[TgBotCmdStart]
+hash = "sha1-0dfc90ac94a89c00e250e95c760900140065d99b"
+other = "Welcome to tgbot-upnp, you can send videos to the current conversation to start your screencasting experience"
+
+[TgBotDescription]
+hash = "sha1-b8c10945ca49d07ccf435d64b12e78b39eb0046b"
+other = "tgbot-upnp is a small tool that can cast telegram videos to other devices through the upnp protocol. You can send the video to the current conversation to start your screen casting experience. details: https://github.com/tgbot-upnp/tgbot-upnp"
+
+[TgBotMsgDeviceUnavailable]
+hash = "sha1-f4283b9c6fead2807ccfda9208b27c91064f5923"
+other = "The playback device is unavailable, please refresh first"
+
+[TgBotMsgPlay]
+hash = "sha1-590e5535f923cf54a8daf27982395d9c7acdac88"
+other = "▶️ Play"
+
+[TgBotMsgRefresh]
+hash = "sha1-9a108a00e612197bec6b2316abd9a1430c28baeb"
+other = "🔄 Refresh"
+
+[TgBotMsgVideoPlayed]
+hash = "sha1-06d51e56e0af676d91a82c7be51a29b76125e9ff"
+other = "Video has started playing"

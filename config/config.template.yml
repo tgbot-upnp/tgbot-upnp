@@ -1,0 +1,5 @@
+app_id: App api_id
+api_hash: App api_hash
+bot_token: API Toke
+http_port: 8080
+admin_id: userID1,userID2

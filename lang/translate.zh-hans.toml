@@ -1,0 +1,39 @@
+[SystrayQuit]
+hash = "sha1-1a2285d8881f226e13430515a9dd2b9fb6294200"
+other = "退出"
+
+[SystrayQuitTooltip]
+hash = "sha1-9911e92e81350237d54e470c1e6122fa94a7d968"
+other = "退出tgbot-upnp"
+
+[TgBotAbout]
+hash = "sha1-a1b8a24eb760a6bcb5dd2446909b5187310fca47"
+other = "将telegram视频通过upnp协议投屏至其他设备 https://github.com/tgbot-upnp/tgbot-upnp"
+
+[TgBotAuthFailed]
+hash = "sha1-d747acd681fd72e61744de5d224013f5b667557b"
+other = "您的用户ID：{{.userID}}\n您不是当前tgbot-upnp的管理员，无法使用此机器人。您可以联系管理员将您的用户ID添加至管理员列表，或者部署自己的tgbot-upnp，详细介绍： https://github.com/tgbot-upnp/tgbot-upnp"
+
+[TgBotCmdStart]
+hash = "sha1-0dfc90ac94a89c00e250e95c760900140065d99b"
+other = "欢迎使用tgbot-upnp,您可以将视频发送到当前对话开始你的投屏体验"
+
+[TgBotDescription]
+hash = "sha1-b8c10945ca49d07ccf435d64b12e78b39eb0046b"
+other = "tgbot-upnp是一个可以将telegram视频通过upnp协议投屏至其他设备的小工具，您可以将视频发送到当前对话开始你的投屏体验。\n详细介绍：https://github.com/tgbot-upnp/tgbot-upnp"
+
+[TgBotMsgDeviceUnavailable]
+hash = "sha1-f4283b9c6fead2807ccfda9208b27c91064f5923"
+other = "播放设备不可用，请刷新后重试"
+
+[TgBotMsgPlay]
+hash = "sha1-590e5535f923cf54a8daf27982395d9c7acdac88"
+other = "▶️ 播放"
+
+[TgBotMsgRefresh]
+hash = "sha1-9a108a00e612197bec6b2316abd9a1430c28baeb"
+other = "🔄 刷新"
+
+[TgBotMsgVideoPlayed]
+hash = "sha1-06d51e56e0af676d91a82c7be51a29b76125e9ff"
+other = "视频已开始播放"

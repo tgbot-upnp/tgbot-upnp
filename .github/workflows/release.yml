@@ -1,0 +1,113 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+permissions:
+  contents: write
+  actions: write
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        # Include amd64 on all platforms.
+        goos: [windows, linux]
+        goarch: [amd64, 386]
+        include:
+          # BEGIN Linux ARM 5 7 8
+          - goos: linux
+            goarch: arm64
+          - goos: linux
+            goarch: arm
+            goarm: 7
+          - goos: linux
+            goarch: arm
+            goarm: 5
+          # END Linux ARM 5 6 7
+          # Windows ARM
+          - goos: windows
+            goarch: arm64
+          - goos: windows
+            goarch: arm
+            goarm: 7
+
+      fail-fast: false
+
+    runs-on: ubuntu-latest
+    env:
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+      GOARM: ${{ matrix.goarm }}
+      CGO_ENABLED: 0
+    steps:
+      - name: Checkout codebase
+        uses: actions/checkout@v4
+
+      - name: Show workflow information
+        run: |
+          export _NAME=$(jq ".[\"$GOOS-$GOARCH$GOARM$GOMIPS\"].friendlyName" -r < .github/build/friendly-filenames.json)
+          echo "GOOS: $GOOS, GOARCH: $GOARCH, GOARM: $GOARM, GOMIPS: $GOMIPS, RELEASE_NAME: $_NAME"
+          echo "ASSET_NAME=$_NAME" >> $GITHUB_ENV
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          check-latest: true
+
+      - name: Get project dependencies
+        run: go mod download
+ 
+      - name: Build on Linux
+        if: matrix.goos == 'linux'
+        run: |
+          mkdir -p build_assets
+          go build -v -o build_assets/tgbot-upnp -trimpath -ldflags "-s -w" ./cmd/main.go
+      - name: Build on Windows
+        if: matrix.goos == 'windows'
+        run: |
+          GOOS=linux GOARCH=amd64 go install github.com/tc-hib/go-winres@latest
+          pushd systray || exit 1
+          go-winres make --arch ${{ matrix.goarch }} --product-version=${{ github.ref }} --file-version=$(date +"%Y.%m.%d.%H")
+          go build -v -o ../build_assets/tgbot-upnp.exe -trimpath -ldflags "-s -w -H=windowsgui" ./
+          popd || exit 1
+      - name: Run UPX
+        if: matrix.goos != 'windows' || (matrix.goarch != 'arm64' && matrix.goarch != 'arm')
+        uses: crazy-max/ghaction-upx@v3
+        with:
+          version: latest
+          files: |
+            ./build_assets/*
+          args: -fq
+      - name: Create ZIP archive
+        shell: bash
+        run: |
+          cp ${GITHUB_WORKSPACE}/config/config.template.yml ./build_assets/config.yml
+          cp ${GITHUB_WORKSPACE}/README.md ./build_assets/README.md
+          pushd build_assets || exit 1
+          touch -mt $(date +%Y01010000) *
+          zip -9vr ../tgbot-upnp-${{ env.ASSET_NAME }}.zip .
+          popd || exit 1
+
+      - name: Change the name
+        run: |
+          mv build_assets tgbot-upnp-${{ env.ASSET_NAME }}
+
+      - name: Upload files to Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: tgbot-upnp-${{ env.ASSET_NAME }}
+          path: |
+            ./tgbot-upnp-${{ env.ASSET_NAME }}/*
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        if: github.event_name == 'release'
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./tgbot-upnp-${{ env.ASSET_NAME }}.zip*
+          tag: ${{ github.ref }}
+          file_glob: true
