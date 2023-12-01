@@ -11,6 +11,8 @@ tgbot-upnp 是一个可以将 telegram 视频通过 upnp 协议投屏至其他�
 - 较低的内存和cpu占用
 - 支持 Windows、docker运行
 
+https://github.com/tgbot-upnp/tgbot-upnp/assets/1317574/58b8744e-ffd4-4bc7-911b-6b9e8fee0821
+
 ## 快速开始
 ### 准备工作
 1. 创建自己的机器人 https://telegram.me/BotFather

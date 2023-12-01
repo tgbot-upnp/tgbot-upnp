@@ -16,6 +16,9 @@ This description was generated using translation software. Help with translation
 - Lower memory and cpu usage
 - Support windows/docker running
 
+https://github.com/tgbot-upnp/tgbot-upnp/assets/1317574/58b8744e-ffd4-4bc7-911b-6b9e8fee0821
+
+
 ## Quick start
 ### Preparation
 1. Create your own bot https://telegram.me/BotFather
