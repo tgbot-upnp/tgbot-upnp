@@ -48,7 +48,7 @@ func Client(appId int, apiHash, botToken string, adminIDs []int, globalLogger *z
 		},
 		&gotgproto.ClientOpts{
 			Logger:           logger,
-			Session:          sessionMaker.NewInMemorySession("tgbot-upnp", sessionMaker.StringSession),
+			Session:          sessionMaker.SqliteSession("tgbot-upnp"),
 			DisableCopyright: true,
 			Middlewares: []telegram.Middleware{
 				ratelimit.New(rate.Every(500*time.Millisecond), 1),
