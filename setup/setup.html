@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>[[.Title]]</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#1a1a2e;color:#e0e0e0;display:flex;justify-content:center;align-items:center;min-height:100vh}
+  .card{background:#16213e;border-radius:12px;padding:32px 28px;width:100%;max-width:480px;box-shadow:0 4px 24px rgba(0,0,0,.4)}
+  h1{font-size:20px;margin-bottom:20px;color:#e94560}
+  label{display:block;font-size:13px;margin-bottom:4px;margin-top:14px;color:#aaa}
+  input,select{width:100%;padding:10px 12px;background:#0f3460;border:1px solid #533483;border-radius:6px;color:#e0e0e0;font-size:14px;outline:none;transition:border-color .2s}
+  input:focus,select:focus{border-color:#e94560}
+  select option{background:#16213e;color:#e0e0e0}
+  .hint{font-size:11px;color:#777;margin-top:2px}
+  .hint a{color:#e94560;text-decoration:none}
+  .grp{margin-top:14px;padding:12px;background:#0a1628;border-radius:8px;border:1px solid #1a2a4e}
+  .grp label{margin-top:0}
+  .actions{margin-top:22px;display:flex;gap:10px}
+  button{padding:10px 24px;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition:opacity .2s}
+  button:hover{opacity:.85}
+  .btn-save{background:#e94560;color:#fff;width:100%}
+  .msg{margin-top:16px;font-size:13px;padding:10px;border-radius:6px;display:none}
+  .msg-ok{background:#1b5e20;color:#a5d6a7;display:block}
+  .msg-err{background:#b71c1c;color:#ef9a9a;display:block}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>[[.Title]]</h1>
+  <form id="f">
+    <label>[[.CredSource]]</label>
+    <select id="credSource">
+      <option value="desktop">[[.CredBuiltinDesktop]]</option>
+      <option value="tdl">[[.CredBuiltinTDL]]</option>
+      <option value="custom">[[.CredCustom]]</option>
+    </select>
+
+    <div id="customCreds" class="grp" style="display:none">
+      <label>[[.AppID]]</label>
+      <input name="app_id" type="number" placeholder="e.g. 12345678" value="[[.AppIDVal]]">
+      <p class="hint"><a href="https://my.telegram.org/apps" target="_blank">[[.AppIDHint]]</a></p>
+      <label>[[.APIHash]]</label>
+      <input name="api_hash" type="text" placeholder="e.g. a1b2c3d4e5f6..." value="[[.APIHashVal]]">
+      <p class="hint">[[.APIHashHint]]</p>
+    </div>
+
+    <label>[[.BotToken]]</label>
+    <input name="bot_token" type="text" placeholder="e.g. 123456:ABC-DEF1234..." value="[[.BotTokenVal]]" required>
+    <p class="hint"><a href="https://t.me/BotFather" target="_blank">[[.BotTokenHint]]</a></p>
+
+    <label>[[.AdminID]]</label>
+    <input name="admin_id" type="text" placeholder="e.g. 123456789 or 123,456" value="[[.AdminIDVal]]" required>
+    <p class="hint"><a href="https://t.me/userinfobot" target="_blank">[[.AdminIDHint]]</a></p>
+
+    <label>[[.HTTPPort]]</label>
+    <input name="http_port" type="number" placeholder="8080" value="[[.HTTPPortVal]]" required>
+
+    <label>[[.BaseURL]]</label>
+    <input name="base_url" type="text" placeholder="http://your-proxy.com:8080" value="[[.BaseURLVal]]">
+    <p class="hint">[[.BaseURLHint]]</p>
+
+    <div class="actions">
+      <button type="submit" class="btn-save">[[.BtnSave]]</button>
+    </div>
+    <div id="msg" class="msg"></div>
+  </form>
+</div>
+<script>
+var PRESETS = [[.PresetsJSON]];
+var L = {
+    saved: [[.Saved]],
+};
+var src = document.getElementById('credSource');
+var custom = document.getElementById('customCreds');
+var appId = document.querySelector('[name="app_id"]');
+var apiHash = document.querySelector('[name="api_hash"]');
+var btnTest = document.getElementById('btnTest');
+var btnSave = document.getElementById('btnSave');
+
+function applySource() {
+    var v = src.value;
+    if (v === 'custom') {
+        custom.style.display = 'block';
+        appId.value = '';
+        apiHash.value = '';
+        appId.required = true;
+        apiHash.required = true;
+    } else {
+        custom.style.display = 'none';
+        appId.value = PRESETS[v].app_id;
+        apiHash.value = PRESETS[v].api_hash;
+        appId.required = false;
+        apiHash.required = false;
+    }
+}
+src.addEventListener('change', applySource);
+applySource(); // initial state
+
+var f = document.getElementById('f');
+var m = document.getElementById('msg');
+function setLoading(v){
+  f.style.opacity = v ? '0.6' : '';
+  f.style.pointerEvents = v ? 'none' : '';
+}
+function show(s,ok){m.textContent=s;m.className='msg '+(ok?'msg-ok':'msg-err')}
+f.addEventListener('submit',async function(e){
+  e.preventDefault();
+  setLoading(true);
+  var fd = new FormData(f);
+  try{
+    var r = await fetch('/save',{method:'POST',body:fd});
+    if(r.ok){
+      show(L.saved, true);
+    }else{
+      show('Save failed: ' + await r.text(), false);
+    }
+  }catch(err){show('Network error: ' + err.message, false)}
+  finally{setLoading(false)}
+});
+</script>
+</body>
+</html>

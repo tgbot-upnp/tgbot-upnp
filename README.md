@@ -1,76 +1,87 @@
 # tgbot-upnp
-tgbot-upnp is a telegram bot that can cast telegram videos to other devices via upnp protocol
 
-
+tgbot-upnp is a Telegram bot that casts videos to UPnP-enabled devices via streaming — no need to download the entire file.
 
 [English](https://github.com/tgbot-upnp/tgbot-upnp/blob/main/README.md) | [简体中文](https://github.com/tgbot-upnp/tgbot-upnp/blob/main/README.zh-Hans.md)
 
-This description was generated using translation software. Help with translation is welcome.
+## Features
 
-## Feature
+- Stream Telegram videos to UPnP (AVTransport) devices
+- No full download required — streaming playback with progress
+- Auto-discover all UPnP devices on LAN
+- Multi-language support (English, 简体中文)
+- Low memory and CPU usage
+- Built-in credential presets — no Telegram API registration needed
+- Browser-based config page for easy setup
+- System tray menu (Windows)
+- Support video links (`t.me/channel/msgID`)
+- Docker support with data persistence
 
-- Cast telegram videos to devices that support UPnP (AVTransport)
-- No need to download the entire video, supports progress bar
-- Automatically scan all UPnP (AVTransport)-enabled devices on the LAN
-- Support multiple languages
-- Lower memory and cpu usage
-- Support windows/docker running
+## Quick Start
 
-https://github.com/tgbot-upnp/tgbot-upnp/assets/1317574/58b8744e-ffd4-4bc7-911b-6b9e8fee0821
+### Option 1: Built-in Credentials (Recommended)
 
+1. Create a bot at [@BotFather](https://t.me/BotFather) → get `API Token`
+2. Get your user ID from [@userinfobot](https://t.me/userinfobot)
+3. Download from [releases](https://github.com/tgbot-upnp/tgbot-upnp/releases), run the app
+4. A browser-based setup page opens automatically — select "Telegram Desktop (official)" for built-in API credentials, fill in your bot token and admin ID, save
 
-## Quick start
-### Preparation
-1. Create your own bot https://telegram.me/BotFather
+### Option 2: Windows (manual)
 
-   GET `API Token`
+Edit `config.yml`:
 
-2. Create your own app https://core.telegram.org/api/obtaining_api_id
-
-   GET `App api_id` `App api_hash`
-
-   The API of Telegram’s official bot does not support streaming downloads. To achieve streaming, you can only use a third-party client that supports the MTProto2.0 protocol. To use a third-party client, you need to apply for your own api_id.
-
-3. Get your user ID https://telegram.me/userinfobot
-
-   GET `userID` integer number
-
-   Used by bot to determine whether the current user can be an administrator
-### windows
-
-Download the app from [release](https://github.com/tgbot-upnp/tgbot-upnp/releases) page , edit the config.yml file, and replace it with the information obtained during the preparation work.
 ```yaml
-app_id: App api_id
-api_hash: App api_hash
-bot_token: API Toke
+app_id: 2040                          # or your own from my.telegram.org/apps
+api_hash: b18441a1ff607e10a989891a5462e627
+bot_token: 123456:ABC-DEF1234...
+admin_id: 123456789                   # or 123456,789012 for multiple
 http_port: 8080
-admin_id: userID #Multiple user IDs are separated by ",": userID1,userID2
+base_url: ""                          # optional: http://your-proxy.com:8080
 ```
-Just start the application and you can see the running program in the system tray
 
-
-### docker
+### Docker
 
 ```shell
 docker run -d --name tgbot-upnp \
-    -e TELEGRAM_APP_ID="App api_id" \
-    -e TELEGRAM_API_HASH="App api_hash" \
-    -e TELEGRAM_BOT_TOKEN="API Toke" \
+    -e TELEGRAM_APP_ID="2040" \
+    -e TELEGRAM_API_HASH="b18441a1ff607e10a989891a5462e627" \
+    -e TELEGRAM_BOT_TOKEN="123456:ABC-DEF1234..." \
+    -e TELEGRAM_ADMIN_ID="123456789" \
     -e TELEGRAM_HTTP_PORT=8080 \
-    -e TELEGRAM_ADMIN_ID="userID,userID2" \
+    -v /host/data:/data \
     --network host \
     tgbotupnp/tgbot-upnp:latest
 ```
 
-## Test run environment
-- [x] Windows10-amd64
-- [x] Windows10-386
-- [x] Docker-amd64
-## Screen-casting software tested
+With `--network host`, UPnP discovery works automatically on LAN. For reverse proxy setups, set `TELEGRAM_BASE_URL`.
 
--  [BubbleUPNP](https://play.google.com/store/apps/details?id=com.bubblesoft.android.bubbleupnp)
--  [当贝投屏](https://www.dangbei.com/app/tv/2021/1214/7921.html)
+### Environment Variables
 
-## Todo
-- [ ] support mac
-- [ ] support openwrt
+| Variable | Description |
+|----------|-------------|
+| `TELEGRAM_APP_ID` | API ID (use 2040 for built-in Telegram Desktop) |
+| `TELEGRAM_API_HASH` | API hash |
+| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather |
+| `TELEGRAM_ADMIN_ID` | Admin user ID(s), comma-separated |
+| `TELEGRAM_HTTP_PORT` | HTTP server port (default: 8080) |
+| `TELEGRAM_BASE_URL` | Custom base URL for reverse proxy (optional) |
+| `TELEGRAM_DATA_DIR` | Data directory for config and session (default: `.`) |
+
+## Usage
+
+1. Send a video to the bot in Telegram
+2. Click ▶️ Play and select your UPnP device
+3. Or send a message link: `https://t.me/channel_name/12345`
+
+The system tray icon (Windows) provides quick access to usage help, config page, and quit.
+
+## Tested Environments
+
+- [x] Windows 10/11 amd64
+- [x] Docker amd64, arm64, arm/v7, arm/v5
+- [x] Linux amd64, arm64
+
+## Tested UPnP Devices
+
+- [BubbleUPnP](https://play.google.com/store/apps/details?id=com.bubblesoft.android.bubbleupnp)
+- [当贝投屏](https://www.dangbei.com/app/tv/2021/1214/7921.html)
