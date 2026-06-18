@@ -1,2 +1,6 @@
 /vendor
 /systray/*.syso
+.idea/
+*.exe
+config.yml
+tgbot-upnp.session

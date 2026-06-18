@@ -1,8 +1,6 @@
 package lang
 
 import (
-	"embed"
-	"github.com/BurntSushi/toml"
 	"github.com/Xuanwo/go-locale"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"go.uber.org/zap"
@@ -12,15 +10,16 @@ import (
 var LocaleSystemTag language.Tag
 var DefaultTag = language.English
 
-//go:embed *.toml
-var LocaleFS embed.FS
-
 var i18nBundle *i18n.Bundle
 var logger *zap.Logger
 
 func GetI18nBundle(globalLogger *zap.Logger) {
 	logger = globalLogger
-	getSupportedLanguage()
+
+	i18nBundle = i18n.NewBundle(language.English)
+	i18nBundle.AddMessages(language.English, messagesEn...)
+	i18nBundle.AddMessages(language.Make("zh-Hans"), messagesZhHans...)
+
 	localeTag, err := locale.Detect()
 	if err != nil {
 		logger.Error("get locale error", zap.String("err", err.Error()))
@@ -30,27 +29,17 @@ func GetI18nBundle(globalLogger *zap.Logger) {
 	}
 	LocaleSystemTag = getMatchTag(localeTag)
 }
-func getSupportedLanguage() {
-	i18nBundle = i18n.NewBundle(language.English)
-	i18nBundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
-	dirEntries, _ := LocaleFS.ReadDir(".")
-	for _, dirEntry := range dirEntries {
-		_, err := i18nBundle.LoadMessageFileFS(LocaleFS, dirEntry.Name())
-		if err != nil {
-			logger.Fatal("load message File success", zap.String("file", dirEntry.Name()))
-		}
-		logger.Info("load message File success", zap.String("file", dirEntry.Name()))
-	}
-}
-func getMatchTag(tag language.Tag) (matchTag language.Tag) {
+
+func getMatchTag(tag language.Tag) language.Tag {
 	matcher := language.NewMatcher(i18nBundle.LanguageTags())
-	matchTag, _, _ = matcher.Match(tag)
-	return
+	matchTag, _, _ := matcher.Match(tag)
+	return matchTag
 }
-func GetLocalizer(tag language.Tag) (localizer *i18n.Localizer) {
-	localizer = i18n.NewLocalizer(i18nBundle, tag.String())
-	return
+
+func GetLocalizer(tag language.Tag) *i18n.Localizer {
+	return i18n.NewLocalizer(i18nBundle, tag.String())
 }
+
 func GetAllSupportedTag() []language.Tag {
 	return i18nBundle.LanguageTags()
 }

@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"strings"
@@ -14,7 +16,25 @@ const (
 	AdminID   = "ADMIN_ID"
 	AdminIDs  = "ADMIN_IDS"
 	HttpPort  = "HTTP_PORT"
+	BaseURL   = "BASE_URL"
 )
+
+// NeedsSetup returns true if no config file exists AND the required
+// environment variables are not set. In that case a setup wizard
+// should be shown to collect credentials interactively.
+func NeedsSetup() bool {
+	if _, err := os.Stat("config.yml"); err == nil {
+		return false
+	}
+	// Use a local viper instance to avoid side effects on global state
+	v := viper.New()
+	v.SetEnvPrefix(EnvPrefix)
+	v.AutomaticEnv()
+	return v.GetInt(AppID) == 0 ||
+		v.GetString(ApiHash) == "" ||
+		v.GetString(BotToken) == "" ||
+		v.GetString(AdminID) == ""
+}
 
 func GetConfig(logger *zap.Logger) {
 	viper.SetConfigName("config")
