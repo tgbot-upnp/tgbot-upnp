@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	EnvPrefix = "TELEGRAM"
+	EnvPrefix = "TGBOT_UPNP"
 	AppID     = "APP_ID"
 	ApiHash   = "API_HASH"
 	BotToken  = "BOT_TOKEN"

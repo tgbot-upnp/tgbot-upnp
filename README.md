@@ -43,29 +43,39 @@ base_url: ""                          # optional: http://your-proxy.com:8080
 
 ```shell
 docker run -d --name tgbot-upnp \
-    -e TELEGRAM_APP_ID="2040" \
-    -e TELEGRAM_API_HASH="b18441a1ff607e10a989891a5462e627" \
-    -e TELEGRAM_BOT_TOKEN="123456:ABC-DEF1234..." \
-    -e TELEGRAM_ADMIN_ID="123456789" \
-    -e TELEGRAM_HTTP_PORT=8080 \
+    -e TGBOT_UPNP_APP_ID="2040" \
+    -e TGBOT_UPNP_API_HASH="b18441a1ff607e10a989891a5462e627" \
+    -e TGBOT_UPNP_BOT_TOKEN="123456:ABC-DEF1234..." \
+    -e TGBOT_UPNP_ADMIN_ID="123456789" \
+    -e TGBOT_UPNP_HTTP_PORT=8080 \
     -v /host/data:/data \
     --network host \
     tgbotupnp/tgbot-upnp:latest
 ```
 
-With `--network host`, UPnP discovery works automatically on LAN. For reverse proxy setups, set `TELEGRAM_BASE_URL`.
+With `--network host`, UPnP discovery works automatically on LAN. For reverse proxy setups, set `TGBOT_UPNP_BASE_URL`.
+
+Images are available on both registries:
+
+```bash
+# Docker Hub
+docker pull tgbotupnp/tgbot-upnp:latest
+
+# GitHub Container Registry
+docker pull ghcr.io/tgbot-upnp/tgbot-upnp:latest
+```
 
 ### Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `TELEGRAM_APP_ID` | API ID (use 2040 for built-in Telegram Desktop) |
-| `TELEGRAM_API_HASH` | API hash |
-| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather |
-| `TELEGRAM_ADMIN_ID` | Admin user ID(s), comma-separated |
-| `TELEGRAM_HTTP_PORT` | HTTP server port (default: 8080) |
-| `TELEGRAM_BASE_URL` | Custom base URL for reverse proxy (optional) |
-| `TELEGRAM_DATA_DIR` | Data directory for config and session (default: `.`) |
+| `TGBOT_UPNP_APP_ID` | API ID (use 2040 for built-in Telegram Desktop) |
+| `TGBOT_UPNP_API_HASH` | API hash |
+| `TGBOT_UPNP_BOT_TOKEN` | Bot token from @BotFather |
+| `TGBOT_UPNP_ADMIN_ID` | Admin user ID(s), comma-separated |
+| `TGBOT_UPNP_HTTP_PORT` | HTTP server port (default: 8080) |
+| `TGBOT_UPNP_BASE_URL` | Custom base URL for reverse proxy (optional) |
+| `TGBOT_UPNP_DATA_DIR` | Data directory for config and session (default: `.`) |
 
 ## Usage
 

@@ -38,8 +38,8 @@ func New() *App {
 	logger := newLogger()
 	lang.GetI18nBundle(logger)
 
-	// Use TELEGRAM_DATA_DIR for config/session storage, default to current dir
-	dataDir := os.Getenv("TELEGRAM_DATA_DIR")
+	// Use TGBOT_UPNP_DATA_DIR for config/session storage, default to current dir
+	dataDir := os.Getenv("TGBOT_UPNP_DATA_DIR")
 	if dataDir == "" {
 		dataDir = "."
 	}

@@ -43,29 +43,39 @@ base_url: ""                          # 可选，反向代理地址如 http://yo
 
 ```shell
 docker run -d --name tgbot-upnp \
-    -e TELEGRAM_APP_ID="2040" \
-    -e TELEGRAM_API_HASH="b18441a1ff607e10a989891a5462e627" \
-    -e TELEGRAM_BOT_TOKEN="123456:ABC-DEF1234..." \
-    -e TELEGRAM_ADMIN_ID="123456789" \
-    -e TELEGRAM_HTTP_PORT=8080 \
+    -e TGBOT_UPNP_APP_ID="2040" \
+    -e TGBOT_UPNP_API_HASH="b18441a1ff607e10a989891a5462e627" \
+    -e TGBOT_UPNP_BOT_TOKEN="123456:ABC-DEF1234..." \
+    -e TGBOT_UPNP_ADMIN_ID="123456789" \
+    -e TGBOT_UPNP_HTTP_PORT=8080 \
     -v /宿主机目录:/data \
     --network host \
     tgbotupnp/tgbot-upnp:latest
 ```
 
-使用 `--network host` 可自动发现局域网 UPnP 设备。如使用反向代理，设置 `TELEGRAM_BASE_URL`。
+使用 `--network host` 可自动发现局域网 UPnP 设备。如使用反向代理，设置 `TGBOT_UPNP_BASE_URL`。
+
+镜像同时发布在 Docker Hub 和 GitHub Container Registry：
+
+```bash
+# Docker Hub
+docker pull tgbotupnp/tgbot-upnp:latest
+
+# GitHub Container Registry
+docker pull ghcr.io/tgbot-upnp/tgbot-upnp:latest
+```
 
 ### 环境变量
 
 | 变量 | 说明 |
 |------|------|
-| `TELEGRAM_APP_ID` | API ID（使用 2040 即内置 Telegram Desktop） |
-| `TELEGRAM_API_HASH` | API Hash |
-| `TELEGRAM_BOT_TOKEN` | 从 @BotFather 获取的 Bot Token |
-| `TELEGRAM_ADMIN_ID` | 管理员用户 ID，多个用英文逗号分隔 |
-| `TELEGRAM_HTTP_PORT` | HTTP 服务端口（默认 8080） |
-| `TELEGRAM_BASE_URL` | 自定义播放地址前缀（可选） |
-| `TELEGRAM_DATA_DIR` | 数据和配置存储目录（默认当前目录） |
+| `TGBOT_UPNP_APP_ID` | API ID（使用 2040 即内置 Telegram Desktop） |
+| `TGBOT_UPNP_API_HASH` | API Hash |
+| `TGBOT_UPNP_BOT_TOKEN` | 从 @BotFather 获取的 Bot Token |
+| `TGBOT_UPNP_ADMIN_ID` | 管理员用户 ID，多个用英文逗号分隔 |
+| `TGBOT_UPNP_HTTP_PORT` | HTTP 服务端口（默认 8080） |
+| `TGBOT_UPNP_BASE_URL` | 自定义播放地址前缀（可选） |
+| `TGBOT_UPNP_DATA_DIR` | 数据和配置存储目录（默认当前目录） |
 
 ## 使用说明
 
