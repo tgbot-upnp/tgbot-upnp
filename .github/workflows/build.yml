@@ -1,0 +1,117 @@
+name: Build (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        required: true
+        type: string
+      upload:
+        required: true
+        type: boolean
+
+jobs:
+  build:
+    runs-on: ${{ inputs.platform == 'macos-amd64' && 'macos-15-intel' || inputs.platform == 'macos-arm64' && 'macos-latest' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout codebase
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          check-latest: true
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build Linux
+        if: startsWith(inputs.platform, 'linux-')
+        env:
+          CGO_ENABLED: 0
+          GOOS: linux
+          GOARCH: ${{ inputs.platform == 'linux-arm64' && 'arm64' || startsWith(inputs.platform, 'linux-arm') && 'arm' || 'amd64' }}
+          GOARM: ${{ inputs.platform == 'linux-arm7' && '7' || inputs.platform == 'linux-arm6' && '6' || inputs.platform == 'linux-arm5' && '5' || '' }}
+        run: |
+          mkdir -p build_assets
+          go build -v -o build_assets/tgbot-upnp -trimpath -ldflags "-s -w" ./cmd/
+
+      - name: Build Windows
+        if: startsWith(inputs.platform, 'windows-')
+        env:
+          CGO_ENABLED: 0
+          GOOS: windows
+          GOARCH: ${{ inputs.platform == 'windows-amd64' && 'amd64' || inputs.platform == 'windows-arm64' && 'arm64' || '386' }}
+        run: |
+          GOOS=linux GOARCH=amd64 go install github.com/tc-hib/go-winres@latest
+          pushd systray || exit 1
+          winres_arch=${{ env.GOARCH == '386' && '386' || env.GOARCH == 'arm64' && 'arm64' || 'amd64' }}
+          go-winres make --arch $winres_arch --product-version=${{ github.ref }} --file-version=$(date +"%Y.%m.%d.%H")
+          go build -v -o ../build_assets/tgbot-upnp.exe -trimpath -ldflags "-s -w -H=windowsgui" ./
+          popd || exit 1
+
+      - name: Build macOS
+        if: inputs.platform == 'macos-amd64' || inputs.platform == 'macos-arm64'
+        env:
+          CGO_ENABLED: 1
+          GOOS: darwin
+          GOARCH: ${{ inputs.platform == 'macos-arm64' && 'arm64' || 'amd64' }}
+        run: |
+          go build -v -o build_assets/tgbot-upnp -trimpath -ldflags "-s -w" ./systray/
+
+          # Create .app bundle
+          mkdir -p "build_assets/tgbot-upnp.app/Contents/MacOS"
+          mkdir -p "build_assets/tgbot-upnp.app/Contents/Resources"
+          mv build_assets/tgbot-upnp "build_assets/tgbot-upnp.app/Contents/MacOS/"
+
+          # Export icon as PNG → ICNS
+          go run .github/scripts/icon.go /tmp/icon.png
+          sips -s format icns /tmp/icon.png --out "build_assets/tgbot-upnp.app/Contents/Resources/icon.icns" 2>/dev/null || true
+
+          cat > "build_assets/tgbot-upnp.app/Contents/Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+          <key>CFBundleExecutable</key><string>tgbot-upnp</string>
+          <key>CFBundleName</key><string>tgbot-upnp</string>
+          <key>CFBundleIdentifier</key><string>com.tgbot-upnp.tgbot-upnp</string>
+          <key>CFBundleIconFile</key><string>icon</string>
+          <key>LSUIElement</key><true/>
+          </dict></plist>
+          PLIST
+
+          # Ad-hoc sign to avoid "damaged" alert on macOS 15+
+          codesign --sign - --force --deep "build_assets/tgbot-upnp.app" 2>/dev/null || true
+
+      - name: Run UPX
+        if: ${{ !startsWith(inputs.platform, 'macos-') && inputs.platform != 'windows-arm64' }}
+        uses: crazy-max/ghaction-upx@v4
+        with:
+          version: latest
+          files: ./build_assets/*
+          args: -fq
+
+      - name: Create ZIP archive
+        shell: bash
+        run: |
+          cp ${GITHUB_WORKSPACE}/README.md ./build_assets/README.md
+          pushd build_assets || exit 1
+          touch -mt $(date +%Y01010000) *
+          zip -9vr ../tgbot-upnp-${{ inputs.platform }}.zip .
+          popd || exit 1
+
+      - name: Upload artifact
+        if: ${{ !inputs.upload }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: tgbot-upnp-${{ inputs.platform }}
+          path: ./tgbot-upnp-${{ inputs.platform }}.zip
+
+      - name: Upload to release
+        if: inputs.upload
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./tgbot-upnp-${{ inputs.platform }}.zip
+          tag: ${{ github.ref_name }}

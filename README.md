@@ -39,6 +39,14 @@ http_port: 8080
 base_url: ""                          # optional: http://your-proxy.com:8080
 ```
 
+### macOS
+
+Download the `.app` bundle from [releases](https://github.com/tgbot-upnp/tgbot-upnp/releases), move to `/Applications`.
+
+First launch — right-click `tgbot-upnp.app` → Open → confirm. This is only needed once (Gatekeeper requires it for unsigned apps).
+
+Config and session files are stored in `~/Library/Application Support/tgbot-upnp/`.
+
 ### Docker
 
 ```shell
@@ -88,8 +96,9 @@ The system tray icon (Windows) provides quick access to usage help, config page,
 ## Tested Environments
 
 - [x] Windows 10/11 amd64
-- [x] Docker amd64, arm64, arm/v7, arm/v5
+- [x] macOS amd64, arm64 (Apple Silicon)
 - [x] Linux amd64, arm64
+- [x] Docker amd64, arm64, arm/v7, arm/v5
 
 ## Tested UPnP Devices
 

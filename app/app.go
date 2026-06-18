@@ -38,10 +38,10 @@ func New() *App {
 	logger := newLogger()
 	lang.GetI18nBundle(logger)
 
-	// Use TGBOT_UPNP_DATA_DIR for config/session storage, default to current dir
+	// Use TGBOT_UPNP_DATA_DIR for config/session storage
 	dataDir := os.Getenv("TGBOT_UPNP_DATA_DIR")
 	if dataDir == "" {
-		dataDir = "."
+		dataDir = defaultDataDir()
 	}
 	_ = os.MkdirAll(dataDir, 0o700)
 	_ = os.Chdir(dataDir)

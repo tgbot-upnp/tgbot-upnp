@@ -39,6 +39,14 @@ http_port: 8080
 base_url: ""                          # 可选，反向代理地址如 http://your-proxy.com:8080
 ```
 
+### macOS 运行
+
+从 [releases](https://github.com/tgbot-upnp/tgbot-upnp/releases) 下载 `.app` 包，移至 `/Applications`。
+
+首次打开：右键 `tgbot-upnp.app` → 打开 → 确认。只需一次（Gatekeeper 对未签名应用的提示）。
+
+配置和会话文件存储在 `~/Library/Application Support/tgbot-upnp/`。
+
 ### Docker 运行
 
 ```shell
@@ -88,8 +96,9 @@ docker pull ghcr.io/tgbot-upnp/tgbot-upnp:latest
 ## 已测试环境
 
 - [x] Windows 10/11 amd64
-- [x] Docker amd64、arm64、arm/v7、arm/v5
+- [x] macOS amd64、arm64 (Apple Silicon)
 - [x] Linux amd64、arm64
+- [x] Docker amd64、arm64、arm/v7、arm/v5
 
 ## 已测试投屏软件
 
