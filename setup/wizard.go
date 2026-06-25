@@ -5,7 +5,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"net"
 	"net/http"
 	"os"
@@ -24,134 +23,136 @@ import (
 //go:embed setup.html
 var setupHTML string
 
-// Use [[ ]] as template delimiters so that {{.Username}} and {{.Error}}
-// in translation strings (intended for JS runtime replacement) are not
-// consumed by Go's template engine.
-var tpl = template.Must(
-	template.New("setup").
-		Delims("[[", "]]").
-		Funcs(template.FuncMap{
-			"json": func(v any) template.JS {
-				b, _ := json.Marshal(v)
-				return template.JS(b)
-			},
-		}).
-		Parse(setupHTML),
-)
+// ---------- GET /api/config ----------
 
-type pageData struct {
-	Title              string
-	Sub                string
-	CredSource         string
-	CredBuiltinDesktop string
-	CredBuiltinTDL     string
-	CredCustom         string
-	AppID              string
-	AppIDHint          string
-	APIHash            string
-	APIHashHint        string
-	BotToken           string
-	BotTokenHint       string
-	AdminID            string
-	AdminIDHint        string
-	HTTPPort           string
-	BaseURL            string
-	BaseURLHint        string
-	BtnSave            string
-	PresetsJSON        template.JS
-	Saved              template.JS
-	// Pre-filled config values (empty if no config exists)
-	AppIDVal    string
-	APIHashVal  string
-	BotTokenVal string
-	AdminIDVal  string
-	HTTPPortVal string
-	BaseURLVal  string
-	SavedMsg    template.JS
+type apiConfigResponse struct {
+	Strings map[string]string    `json:"strings"`
+	Presets map[string]PresetApp `json:"presets"`
+	Config  apiConfigData        `json:"config"`
+	Locale  string               `json:"locale"` // e.g. "zh-Hans", "en"
 }
 
-func pageDataFromStrings(s lang.SetupStrings) pageData {
-	presetsJSON, _ := json.Marshal(map[string]PresetApp{
-		"desktop": Presets["desktop"],
-		"tdl":     Presets["tdl"],
-	})
-	return pageData{
-		Title:              s.Title,
-		Sub:                s.Sub,
-		CredSource:         s.CredSource,
-		CredBuiltinDesktop: s.CredBuiltinDesktop,
-		CredBuiltinTDL:     s.CredBuiltinTDL,
-		CredCustom:         s.CredCustom,
-		AppID:              s.AppID,
-		AppIDHint:          s.AppIDHint,
-		APIHash:            s.APIHash,
-		APIHashHint:        s.APIHashHint,
-		BotToken:           s.BotToken,
-		BotTokenHint:       s.BotTokenHint,
-		AdminID:            s.AdminID,
-		AdminIDHint:        s.AdminIDHint,
-		HTTPPort:           s.HTTPPort,
-		BaseURL:            s.BaseURL,
-		BaseURLHint:        s.BaseURLHint,
-		BtnSave:            s.BtnSave,
-		PresetsJSON:        template.JS(presetsJSON),
-		Saved:              template.JS(jsonString(s.Saved)),
-		HTTPPortVal:        "8080",
+type apiConfigData struct {
+	CredSource     string `json:"credSource"`
+	AppID          string `json:"appId"`
+	APIHash        string `json:"apiHash"`
+	BotToken       string `json:"botToken"`
+	AdminID        string `json:"adminId"`
+	AutoAdmin      bool   `json:"autoAdmin"`
+	HTTPPort       string `json:"httpPort"`
+	BaseURL        string `json:"baseUrl"`
+	UserSession    string `json:"userSession"`
+	SessionDisplay string `json:"sessionDisplay"`
+	SessionStatus  string `json:"sessionStatus"` // "ok" | "unverified" | ""
+}
+
+func buildStringsMap(s lang.SetupStrings) map[string]string {
+	return map[string]string{
+		"title": s.Title, "sub": s.Sub,
+		"credSource": s.CredSource, "credBuiltinDesktop": s.CredBuiltinDesktop,
+		"credBuiltinTDL": s.CredBuiltinTDL, "credCustom": s.CredCustom,
+		"appId": s.AppID, "appIdHint": s.AppIDHint,
+		"apiHash": s.APIHash, "apiHashHint": s.APIHashHint,
+		"botToken": s.BotToken, "botTokenHint": s.BotTokenHint,
+		"adminId": s.AdminID, "adminIdHint": s.AdminIDHint,
+		"httpPort": s.HTTPPort,
+		"baseUrl":  s.BaseURL, "baseUrlHint": s.BaseURLHint,
+		"userSession": s.UserSession, "userSessionHint": s.UserSessionHint,
+		"autoAdmin": s.AutoAdmin,
+		"btnScan":   s.BtnScan,
+		"qrTitle":   s.QRTitle, "qrWaiting": s.QRWaiting, "qrOk": s.QROK,
+		"btnSave": s.BtnSave, "saved": s.Saved,
 	}
 }
 
-func jsonString(s string) string {
-	b, _ := json.Marshal(s)
-	return string(b)
-}
-
-// Handler returns an http.Handler that serves the configuration page.
-// If a config file exists, values are pre-filled. The save endpoint
-// writes to the config file without shutting down the server.
-func Handler(translations lang.SetupStrings) http.Handler {
-	data := pageDataFromStrings(translations)
-
-	// Pre-fill from existing config file
-	if cfg, err := os.ReadFile("config.yml"); err == nil {
-		var c configData
-		if yaml.Unmarshal(cfg, &c) == nil {
-			data.AppIDVal = strconv.Itoa(c.AppID)
-			data.APIHashVal = c.APIHash
-			data.BotTokenVal = c.BotToken
-			data.AdminIDVal = c.AdminID
-			if c.HTTPPort > 0 {
-				data.HTTPPortVal = strconv.Itoa(c.HTTPPort)
-			} else {
-				data.HTTPPortVal = "8080"
-			}
-			data.BaseURLVal = c.BaseURL
+func handleAPIConfig(tr lang.SetupStrings) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cfg := apiConfigData{
+			CredSource: DefaultPreset,
+			HTTPPort:   "8080",
 		}
+
+		// Read existing config.yml
+		if raw, err := os.ReadFile("config.yml"); err == nil {
+			var c configData
+			if yaml.Unmarshal(raw, &c) == nil {
+				cfg.AppID = strconv.Itoa(c.AppID)
+				cfg.APIHash = c.APIHash
+				cfg.BotToken = c.BotToken
+				cfg.AdminID = c.AdminID
+				if c.HTTPPort > 0 {
+					cfg.HTTPPort = strconv.Itoa(c.HTTPPort)
+				}
+				cfg.BaseURL = c.BaseURL
+				cfg.UserSession = c.UserSession
+				cfg.AutoAdmin = c.AutoAdmin
+
+				// Determine which preset matches
+				matched := false
+				for name, p := range Presets {
+					if p.AppID == c.AppID {
+						cfg.CredSource = name
+						matched = true
+						break
+					}
+				}
+				if !matched && cfg.AppID != "" {
+					cfg.CredSource = "custom"
+				}
+
+				// Validate saved session (best-effort)
+				if c.UserSession != "" {
+					name, uid, ok := ValidateSession(c.AppID, c.APIHash, c.UserSession)
+					if ok {
+						cfg.SessionDisplay = fmt.Sprintf("%s (ID:%d)", name, uid)
+						cfg.SessionStatus = "ok"
+					} else {
+						cfg.SessionDisplay = "Session saved but could not be verified."
+						cfg.SessionStatus = "unverified"
+					}
+				}
+			}
+		}
+
+		// Auto-detect base_url from non-localhost requests
+		if cfg.BaseURL == "" && !isLocalhost(r.Host) {
+			scheme := "http://"
+			if r.Header.Get("X-Forwarded-Proto") == "https" {
+				scheme = "https://"
+			}
+			cfg.BaseURL = scheme + r.Host
+		}
+
+		resp := apiConfigResponse{
+			Strings: buildStringsMap(tr),
+			Presets: Presets,
+			Config:  cfg,
+			Locale:  lang.LocaleSystemTag.String(),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
 	}
+}
 
-	// Use a modified save message for reconfiguration
-	data.SavedMsg = template.JS(jsonString(translations.Saved))
-
+// Handler returns an http.Handler for the configuration page.
+// All values are fetched client-side via GET /api/config.
+func Handler(translations lang.SetupStrings) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// Auto-suggest base_url from request Host if not localhost
-		if data.BaseURLVal == "" && !isLocalhost(r.Host) {
-			// Host includes port, e.g. "192.168.1.100:8080"
-			if scheme := r.Header.Get("X-Forwarded-Proto"); scheme == "https" {
-				data.BaseURLVal = "https://" + r.Host
-			} else {
-				data.BaseURLVal = "http://" + r.Host
-			}
-		}
-		_ = tpl.Execute(w, data)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write([]byte(setupHTML))
 	})
+	mux.HandleFunc("/api/config", handleAPIConfig(translations))
 	mux.HandleFunc("/save", func(w http.ResponseWriter, r *http.Request) {
-		handleSaveConfig(w, r, translations)
+		handleSaveConfig(w, r)
 	})
+	mux.HandleFunc("/qrcode", HandleQRCode)
+	mux.HandleFunc("/qrcode-status", HandleQRStatus)
 	return mux
 }
 
 // handleSaveConfig is like handleSave, but does not signal completion.
-func handleSaveConfig(w http.ResponseWriter, r *http.Request, tr lang.SetupStrings) {
+func handleSaveConfig(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -175,11 +176,12 @@ func handleSaveConfig(w http.ResponseWriter, r *http.Request, tr lang.SetupStrin
 		httpPort = 8080
 	}
 	baseURL := strings.TrimSpace(r.FormValue("base_url"))
-	if apiHash == "" || botToken == "" || adminID == "" {
+	autoAdmin := r.FormValue("auto_admin") == "true"
+	if apiHash == "" || botToken == "" || (adminID == "" && !autoAdmin) {
 		http.Error(w, "all fields are required", http.StatusBadRequest)
 		return
 	}
-	cfg := configData{AppID: appID, APIHash: apiHash, BotToken: botToken, HTTPPort: httpPort, AdminID: adminID, BaseURL: baseURL}
+	cfg := configData{AppID: appID, APIHash: apiHash, BotToken: botToken, HTTPPort: httpPort, AdminID: adminID, AutoAdmin: autoAdmin, BaseURL: baseURL, UserSession: strings.TrimSpace(r.FormValue("user_session"))}
 	data, err := yaml.Marshal(&cfg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -193,19 +195,19 @@ func handleSaveConfig(w http.ResponseWriter, r *http.Request, tr lang.SetupStrin
 }
 
 type configData struct {
-	AppID    int    `yaml:"app_id"`
-	APIHash  string `yaml:"api_hash"`
-	BotToken string `yaml:"bot_token"`
-	HTTPPort int    `yaml:"http_port"`
-	AdminID  string `yaml:"admin_id"`
-	BaseURL  string `yaml:"base_url"`
+	AppID       int    `yaml:"app_id"`
+	APIHash     string `yaml:"api_hash"`
+	BotToken    string `yaml:"bot_token"`
+	HTTPPort    int    `yaml:"http_port"`
+	AdminID     string `yaml:"admin_id"`
+	AutoAdmin   bool   `yaml:"auto_admin"`
+	BaseURL     string `yaml:"base_url"`
+	UserSession string `yaml:"user_session"`
 }
 
-// Run starts the browser-based configuration wizard on the given port.
+// Run starts the browser-based configuration wizard.
 // Blocks until the user saves a valid configuration or cancels.
 func Run(port int, translations lang.SetupStrings) error {
-	data := pageDataFromStrings(translations)
-
 	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
 		return fmt.Errorf("setup: listen: %w", err)
@@ -213,23 +215,17 @@ func Run(port int, translations lang.SetupStrings) error {
 
 	done := make(chan error, 1)
 
-	// Handlers that use the localized templates from the test/save responses
-	tr := translations // capture for handlers
-
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if !isLocalhost(r.Host) {
-			scheme := "http://"
-			if r.Header.Get("X-Forwarded-Proto") == "https" {
-				scheme = "https://"
-			}
-			data.BaseURLVal = scheme + r.Host
-		}
-		_ = tpl.Execute(w, data)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write([]byte(setupHTML))
 	})
+	mux.HandleFunc("/api/config", handleAPIConfig(translations))
 	mux.HandleFunc("/save", func(w http.ResponseWriter, r *http.Request) {
-		handleSave(w, r, done, tr)
+		handleSave(w, r, done)
 	})
+	mux.HandleFunc("/qrcode", HandleQRCode)
+	mux.HandleFunc("/qrcode-status", HandleQRStatus)
 
 	srv := &http.Server{
 		Addr:        fmt.Sprintf("127.0.0.1:%d", port),
@@ -262,7 +258,7 @@ func Run(port int, translations lang.SetupStrings) error {
 
 // verifyCredentials tries to log in with the given credentials and returns
 // the bot's username on success, or an error message on failure.
-func handleSave(w http.ResponseWriter, r *http.Request, done chan<- error, tr lang.SetupStrings) {
+func handleSave(w http.ResponseWriter, r *http.Request, done chan<- error) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -288,21 +284,25 @@ func handleSave(w http.ResponseWriter, r *http.Request, done chan<- error, tr la
 	if httpPort <= 0 {
 		httpPort = 8080
 	}
+	autoAdmin := r.FormValue("auto_admin") == "true"
 
-	if apiHash == "" || botToken == "" || adminID == "" {
+	if apiHash == "" || botToken == "" || (adminID == "" && !autoAdmin) {
 		http.Error(w, "all fields are required", http.StatusBadRequest)
 		return
 	}
 
 	baseURL := strings.TrimSpace(r.FormValue("base_url"))
+	userSession := strings.TrimSpace(r.FormValue("user_session"))
 
 	cfg := configData{
-		AppID:    appID,
-		APIHash:  apiHash,
-		BotToken: botToken,
-		HTTPPort: httpPort,
-		AdminID:  adminID,
-		BaseURL:  baseURL,
+		AppID:       appID,
+		APIHash:     apiHash,
+		BotToken:    botToken,
+		HTTPPort:    httpPort,
+		AdminID:     adminID,
+		AutoAdmin:   autoAdmin,
+		BaseURL:     baseURL,
+		UserSession: userSession,
 	}
 
 	data, err := yaml.Marshal(&cfg)

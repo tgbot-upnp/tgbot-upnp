@@ -1,124 +1,507 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>[[.Title]]</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#1a1a2e;color:#e0e0e0;display:flex;justify-content:center;align-items:center;min-height:100vh}
-  .card{background:#16213e;border-radius:12px;padding:32px 28px;width:100%;max-width:480px;box-shadow:0 4px 24px rgba(0,0,0,.4)}
-  h1{font-size:20px;margin-bottom:20px;color:#e94560}
-  label{display:block;font-size:13px;margin-bottom:4px;margin-top:14px;color:#aaa}
-  input,select{width:100%;padding:10px 12px;background:#0f3460;border:1px solid #533483;border-radius:6px;color:#e0e0e0;font-size:14px;outline:none;transition:border-color .2s}
-  input:focus,select:focus{border-color:#e94560}
-  select option{background:#16213e;color:#e0e0e0}
-  .hint{font-size:11px;color:#777;margin-top:2px}
-  .hint a{color:#e94560;text-decoration:none}
-  .grp{margin-top:14px;padding:12px;background:#0a1628;border-radius:8px;border:1px solid #1a2a4e}
-  .grp label{margin-top:0}
-  .actions{margin-top:22px;display:flex;gap:10px}
-  button{padding:10px 24px;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition:opacity .2s}
-  button:hover{opacity:.85}
-  .btn-save{background:#e94560;color:#fff;width:100%}
-  .msg{margin-top:16px;font-size:13px;padding:10px;border-radius:6px;display:none}
-  .msg-ok{background:#1b5e20;color:#a5d6a7;display:block}
-  .msg-err{background:#b71c1c;color:#ef9a9a;display:block}
-</style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>tgbot-upnp Setup</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        body {
+            font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh
+        }
+
+        .card {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 32px 28px;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, .4)
+        }
+
+        h1 {
+            font-size: 20px;
+            margin-bottom: 4px;
+            color: #e94560
+        }
+
+        .sub {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 20px
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 4px;
+            margin-top: 14px;
+            color: #aaa
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px 12px;
+            background: #0f3460;
+            border: 1px solid #533483;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 14px;
+            outline: none
+        }
+
+        input:focus, select:focus {
+            border-color: #e94560
+        }
+
+        select option {
+            background: #16213e;
+            color: #e0e0e0
+        }
+
+        .hint {
+            font-size: 11px;
+            color: #777;
+            margin-top: 2px
+        }
+
+        .hint a {
+            color: #e94560;
+            text-decoration: none
+        }
+
+        .grp {
+            margin-top: 14px;
+            padding: 12px;
+            background: #0a1628;
+            border-radius: 8px;
+            border: 1px solid #1a2a4e
+        }
+
+        .grp label {
+            margin-top: 0
+        }
+
+        .actions {
+            margin-top: 22px
+        }
+
+        button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer
+        }
+
+        button:hover {
+            opacity: .85
+        }
+
+        .btn-save {
+            background: #e94560;
+            color: #fff;
+            width: 100%
+        }
+
+        .btn-scan {
+            background: #533483;
+            color: #e0e0e0;
+            width: 100%
+        }
+
+        .msg {
+            margin-top: 16px;
+            font-size: 13px;
+            padding: 10px;
+            border-radius: 6px;
+            display: none
+        }
+
+        .msg-ok {
+            background: #1b5e20;
+            color: #a5d6a7;
+            display: block
+        }
+
+        .msg-err {
+            background: #b71c1c;
+            color: #ef9a9a;
+            display: block
+        }
+
+        .ses-ok {
+            color: #a5d6a7
+        }
+
+        .ses-bad {
+            color: #ef9a9a
+        }
+
+        .ses-warn {
+            color: #ffb74d
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #aaa
+        }
+
+        .loading::after {
+            content: "...";
+            animation: dots 1.5s steps(4, end) infinite
+        }
+
+        @keyframes dots {
+            0%, 20% {
+                content: "."
+            }
+            40% {
+                content: ".."
+            }
+            60%, 100% {
+                content: "..."
+            }
+        }
+    </style>
 </head>
 <body>
+
 <div class="card">
-  <h1>[[.Title]]</h1>
-  <form id="f">
-    <label>[[.CredSource]]</label>
-    <select id="credSource">
-      <option value="desktop">[[.CredBuiltinDesktop]]</option>
-      <option value="tdl">[[.CredBuiltinTDL]]</option>
-      <option value="custom">[[.CredCustom]]</option>
-    </select>
+    <h1 id="title"></h1>
+    <p class="sub" id="sub"></p>
+    <div id="loading" class="loading"></div>
+    <form id="f" style="display:none">
 
-    <div id="customCreds" class="grp" style="display:none">
-      <label>[[.AppID]]</label>
-      <input name="app_id" type="number" placeholder="e.g. 12345678" value="[[.AppIDVal]]">
-      <p class="hint"><a href="https://my.telegram.org/apps" target="_blank">[[.AppIDHint]]</a></p>
-      <label>[[.APIHash]]</label>
-      <input name="api_hash" type="text" placeholder="e.g. a1b2c3d4e5f6..." value="[[.APIHashVal]]">
-      <p class="hint">[[.APIHashHint]]</p>
-    </div>
+        <label id="lblCredSource"></label>
+        <select id="credSource" name="cred_source">
+            <option value="desktop"></option>
+            <option value="tdl"></option>
+            <option value="custom"></option>
+        </select>
 
-    <label>[[.BotToken]]</label>
-    <input name="bot_token" type="text" placeholder="e.g. 123456:ABC-DEF1234..." value="[[.BotTokenVal]]" required>
-    <p class="hint"><a href="https://t.me/BotFather" target="_blank">[[.BotTokenHint]]</a></p>
+        <div id="customCreds" class="grp" style="display:none">
+            <label id="lblAppId"></label>
+            <input name="app_id" type="number" placeholder="e.g. 2040">
+            <p class="hint"><a href="https://my.telegram.org/apps" target="_blank" id="hintAppId"></a></p>
+            <label id="lblApiHash"></label>
+            <input name="api_hash" type="text" placeholder="e.g. a1b2c3d4...">
+            <p class="hint" id="hintApiHash"></p>
+        </div>
 
-    <label>[[.AdminID]]</label>
-    <input name="admin_id" type="text" placeholder="e.g. 123456789 or 123,456" value="[[.AdminIDVal]]" required>
-    <p class="hint"><a href="https://t.me/userinfobot" target="_blank">[[.AdminIDHint]]</a></p>
+        <label id="lblBotToken"></label>
+        <input name="bot_token" type="text" placeholder="e.g. 123456:ABC-DEF1234..." required>
+        <p class="hint"><a href="https://t.me/BotFather" target="_blank" id="hintBotToken"></a></p>
 
-    <label>[[.HTTPPort]]</label>
-    <input name="http_port" type="number" placeholder="8080" value="[[.HTTPPortVal]]" required>
+        <label id="lblAdminId"></label>
+        <input name="admin_id" type="text" placeholder="e.g. 123456789 or 123,456">
+        <p class="hint"><a href="https://t.me/userinfobot" target="_blank" id="hintAdminId"></a></p>
 
-    <label>[[.BaseURL]]</label>
-    <input name="base_url" type="text" placeholder="http://your-proxy.com:8080" value="[[.BaseURLVal]]">
-    <p class="hint">[[.BaseURLHint]]</p>
+        <label style="margin-top:8px;display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" name="auto_admin" value="true" style="width:auto">
+          <span id="lblAutoAdmin" style="color:#e0e0e0;margin-top:0"></span>
+        </label>
 
-    <div class="actions">
-      <button type="submit" class="btn-save">[[.BtnSave]]</button>
-    </div>
-    <div id="msg" class="msg"></div>
-  </form>
+        <label id="lblUserSession"></label>
+        <p id="sesDisplay" style="margin-top:4px"></p>
+        <input type="hidden" name="user_session">
+        <button type="button" class="btn-scan" id="btnScan"></button>
+        <p class="hint" id="hintUserSession"></p>
+
+        <label id="lblHttpPort"></label>
+        <input name="http_port" type="number" placeholder="8080" required>
+
+        <label id="lblBaseUrl"></label>
+        <input name="base_url" type="text" placeholder="http://your-proxy.com:8080">
+        <p class="hint" id="hintBaseUrl"></p>
+
+        <div class="actions">
+            <button type="submit" class="btn-save" id="btnSave"></button>
+        </div>
+        <div id="msg" class="msg"></div>
+    </form>
 </div>
+
+<!-- QR Dialog -->
+<div id="qrDialog"
+     style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);justify-content:center;align-items:center;z-index:1000">
+    <div class="card" style="text-align:center;max-width:320px">
+        <h2 id="qrTitle"></h2>
+        <img id="qrImg" style="border-radius:8px;margin:16px 0" width="256" height="256" alt="QR">
+        <p id="qrStatus"></p>
+        <button id="qrClose" style="background:#533483;color:#e0e0e0;padding:8px 20px;margin-top:12px"></button>
+    </div>
+</div>
+
 <script>
-var PRESETS = [[.PresetsJSON]];
-var L = {
-    saved: [[.Saved]],
-};
-var src = document.getElementById('credSource');
-var custom = document.getElementById('customCreds');
-var appId = document.querySelector('[name="app_id"]');
-var apiHash = document.querySelector('[name="api_hash"]');
-var btnTest = document.getElementById('btnTest');
-var btnSave = document.getElementById('btnSave');
+    // ── JS-level locale strings for text not covered by server-side i18n ──
+    var LL = {
+        zh: {
+            loading: '加载中',
+            loadError: '配置加载失败',
+            btnScanAgain: '🔄 重新扫码',
+            qrClose: '关闭',
+            saveFailed: '保存失败',
+            networkError: '网络错误',
+            error: '错误',
+            qrWaitingFallback: '等待扫码...',
+            qrOkFallback: '登录成功！',
+        },
+        en: {
+            loading: 'Loading',
+            loadError: 'Failed to load config',
+            btnScanAgain: '🔄 Re-scan',
+            qrClose: 'Close',
+            saveFailed: 'Save failed',
+            networkError: 'Network error',
+            error: 'Error',
+            qrWaitingFallback: 'Waiting for scan...',
+            qrOkFallback: 'Logged in!',
+        }
+    };
 
-function applySource() {
-    var v = src.value;
-    if (v === 'custom') {
-        custom.style.display = 'block';
-        appId.value = '';
-        apiHash.value = '';
-        appId.required = true;
-        apiHash.required = true;
-    } else {
-        custom.style.display = 'none';
-        appId.value = PRESETS[v].app_id;
-        apiHash.value = PRESETS[v].api_hash;
-        appId.required = false;
-        apiHash.required = false;
+    function pickLL(locale) {
+        if (locale && locale.indexOf('zh') === 0) return LL.zh;
+        return LL.en;
     }
-}
-src.addEventListener('change', applySource);
-applySource(); // initial state
 
-var f = document.getElementById('f');
-var m = document.getElementById('msg');
-function setLoading(v){
-  f.style.opacity = v ? '0.6' : '';
-  f.style.pointerEvents = v ? 'none' : '';
-}
-function show(s,ok){m.textContent=s;m.className='msg '+(ok?'msg-ok':'msg-err')}
-f.addEventListener('submit',async function(e){
-  e.preventDefault();
-  setLoading(true);
-  var fd = new FormData(f);
-  try{
-    var r = await fetch('/save',{method:'POST',body:fd});
-    if(r.ok){
-      show(L.saved, true);
-    }else{
-      show('Save failed: ' + await r.text(), false);
+    // ── State ──
+    var S = {};   // server i18n strings
+    var P = {};   // presets {desktop:{app_id,api_hash}, tdl:{...}}
+    var C = {};   // current config
+    var L = null; // resolved LL dictionary
+    var QR_POLL_TIMER = null;
+
+    // ── Helpers ──
+    function el(id) {
+        return document.getElementById(id);
     }
-  }catch(err){show('Network error: ' + err.message, false)}
-  finally{setLoading(false)}
-});
+
+    function show(msg, cls) {
+        var m = el('msg');
+        m.textContent = msg;
+        m.className = 'msg ' + (cls || 'msg-ok');
+    }
+
+    function setText(id, text) {
+        var e = el(id);
+        if (e) e.textContent = text;
+    }
+
+    // ── Load config from API ──
+    async function loadConfig() {
+        try {
+            var resp = await fetch('/api/config');
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            var data = await resp.json();
+            S = data.strings || {};
+            P = data.presets || {};
+            C = data.config || {};
+            L = pickLL(data.locale);
+            el('loading').textContent = L.loading;
+            applyConfig();
+        } catch (err) {
+            el('loading').textContent = (L || LL.en).loadError + ': ' + err.message;
+            setTimeout(loadConfig, 2000);
+        }
+    }
+
+    // ── Apply config to form ──
+    function applyConfig() {
+        // Set all i18n strings from server
+        setText('title', S.title || 'tgbot-upnp Setup');
+        setText('sub', S.sub || '');
+        el('lblCredSource').textContent = S.credSource || '';
+        el('credSource').options[0].textContent = S.credBuiltinDesktop || '';
+        el('credSource').options[1].textContent = S.credBuiltinTDL || '';
+        el('credSource').options[2].textContent = S.credCustom || '';
+        el('lblAppId').textContent = S.appId || '';
+        el('hintAppId').textContent = S.appIdHint || '';
+        el('lblApiHash').textContent = S.apiHash || '';
+        el('hintApiHash').textContent = S.apiHashHint || '';
+        el('lblBotToken').textContent = S.botToken || '';
+        el('hintBotToken').textContent = S.botTokenHint || '';
+        el('lblAdminId').textContent = S.adminId || '';
+        el('hintAdminId').textContent = S.adminIdHint || '';
+        el('lblAutoAdmin').textContent = S.autoAdmin || '';
+        el('lblHttpPort').textContent = S.httpPort || '';
+        el('lblBaseUrl').textContent = S.baseUrl || '';
+        el('hintBaseUrl').textContent = S.baseUrlHint || '';
+        el('lblUserSession').textContent = S.userSession || '';
+        el('hintUserSession').textContent = S.userSessionHint || '';
+        el('btnScan').textContent = S.btnScan || '';
+        el('btnSave').textContent = S.btnSave || '';
+        el('qrTitle').textContent = S.qrTitle || '';
+        el('qrClose').textContent = L.qrClose;
+        document.title = S.title || 'tgbot-upnp Setup';
+
+        // Fill form values
+        var f = el('f');
+        f['cred_source'].value = C.credSource || 'desktop';
+        f['app_id'].value = C.appId || '';
+        f['api_hash'].value = C.apiHash || '';
+        f['bot_token'].value = C.botToken || '';
+        f['admin_id'].value = C.adminId || '';
+        f['auto_admin'].checked = C.autoAdmin || false;
+        f['admin_id'].required = !f['auto_admin'].checked;
+        f['http_port'].value = C.httpPort || '8080';
+        f['base_url'].value = C.baseUrl || '';
+        f['user_session'].value = C.userSession || '';
+
+        applySessionDisplay();
+        applyPreset();
+        el('credSource').addEventListener('change', applyPreset);
+        f['auto_admin'].addEventListener('change', function() {
+            f['admin_id'].required = !this.checked;
+        });
+
+        el('loading').style.display = 'none';
+        el('f').style.display = '';
+    }
+
+    // ── Preset switching ──
+    function applyPreset() {
+        var src = el('credSource').value;
+        var cc = el('customCreds');
+        var a = document.querySelector('[name="app_id"]');
+        var h = document.querySelector('[name="api_hash"]');
+        if (src === 'custom') {
+            cc.style.display = 'block';
+        } else {
+            cc.style.display = 'none';
+            var p = P[src];
+            if (p) {
+                a.value = p.app_id || '';
+                h.value = p.api_hash || '';
+            }
+        }
+    }
+
+    // ── Session display ──
+    function applySessionDisplay() {
+        var d = el('sesDisplay');
+        var st = C.sessionStatus || '';
+        var txt = C.sessionDisplay || '';
+        if (st === 'ok') {
+            d.className = 'ses-ok';
+            d.textContent = '✅ ' + txt;
+            el('btnScan').textContent = L.btnScanAgain;
+        } else if (st === 'unverified') {
+            d.className = 'ses-warn';
+            d.textContent = '⚠ ' + txt;
+        } else {
+            d.className = '';
+            d.textContent = txt || '';
+        }
+    }
+
+    // ── Form submit ──
+    el('f').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        var f = el('f');
+        f.style.opacity = '0.6';
+        f.style.pointerEvents = 'none';
+        try {
+            var fd = new FormData(f);
+            var resp = await fetch('/save', {method: 'POST', body: fd});
+            if (resp.ok) {
+                show(S.saved || '', 'msg-ok');
+                C.userSession = f['user_session'].value;
+                C.appId = f['app_id'].value;
+            } else {
+                var errText = await resp.text();
+                show(L.saveFailed + ': ' + errText, 'msg-err');
+            }
+        } catch (err) {
+            show(L.networkError + ': ' + err.message, 'msg-err');
+        }
+        f.style.opacity = '';
+        f.style.pointerEvents = '';
+    });
+
+    // ── QR Code login ──
+    el('btnScan').addEventListener('click', function () {
+        var appId = document.querySelector('[name="app_id"]').value;
+        var apiHash = document.querySelector('[name="api_hash"]').value;
+        var d = el('qrDialog');
+        var img = el('qrImg');
+        var st = el('qrStatus');
+
+        if (QR_POLL_TIMER) {
+            clearTimeout(QR_POLL_TIMER);
+            QR_POLL_TIMER = null;
+        }
+        d.style.display = 'flex';
+        st.textContent = S.qrWaiting || L.qrWaitingFallback;
+        img.src = '/qrcode?app_id=' + encodeURIComponent(appId) +
+            '&api_hash=' + encodeURIComponent(apiHash) + '&t=' + Date.now();
+        img.style.display = 'block';
+
+        function poll() {
+            fetch('/qrcode-status')
+                .then(function (r) {
+                    return r.json();
+                })
+                .then(function (j) {
+                    if (j.status === 'waiting') {
+                        QR_POLL_TIMER = setTimeout(poll, 2000);
+                    } else if (j.status === 'done') {
+                        QR_POLL_TIMER = null;
+                        img.style.display = 'none';
+                        st.textContent = (S.qrOk || L.qrOkFallback) + ' ' + (j.name || '') + ' (ID:' + (j.userID || '') + ')';
+                        var f = el('f');
+                        f['user_session'].value = j.session || '';
+                        var fd = new FormData(f);
+                        fetch('/save', {method: 'POST', body: fd});
+                        C.sessionStatus = 'ok';
+                        C.sessionDisplay = (j.name || '') + ' (ID:' + (j.userID || '') + ')';
+                        applySessionDisplay();
+                        setTimeout(function () {
+                            d.style.display = 'none';
+                        }, 1500);
+                    } else if (j.status === 'error') {
+                        st.textContent = L.error + ': ' + (j.message || '');
+                    }
+                }).catch(function () {
+                QR_POLL_TIMER = setTimeout(poll, 2000);
+            });
+        }
+
+        QR_POLL_TIMER = setTimeout(poll, 500);
+    });
+
+    // ── Close QR dialog ──
+    el('qrClose').addEventListener('click', function () {
+        if (QR_POLL_TIMER) {
+            clearTimeout(QR_POLL_TIMER);
+            QR_POLL_TIMER = null;
+        }
+        el('qrDialog').style.display = 'none';
+    });
+    el('qrDialog').addEventListener('click', function (e) {
+        if (e.target === this) {
+            if (QR_POLL_TIMER) {
+                clearTimeout(QR_POLL_TIMER);
+                QR_POLL_TIMER = null;
+            }
+            this.style.display = 'none';
+        }
+    });
+
+    // ── Bootstrap ──
+    document.addEventListener('DOMContentLoaded', loadConfig);
 </script>
 </body>
 </html>

@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/gotd/td/tg"
 	"github.com/huin/goupnp/dcps/av1"
@@ -19,6 +21,37 @@ import (
 
 // t.me link pattern: optional https://, then t.me/, then username or c/ID, then /msgID
 var linkRe = regexp.MustCompile(`(?:https?://)?t\.me/((?:c/)?[a-zA-Z0-9_+-]+)/(\d+)`)
+
+// ── Video cache for private channel links ──
+// When a link resolves a video that the bot cannot forward (restricted channel),
+// the document metadata is stored here so the user can still play it.
+
+var (
+	videoCache    sync.Map // map[string]*tg.Document
+	videoCacheSeq int64
+)
+
+func cacheVideo(doc *tg.Document) string {
+	key := strconv.FormatInt(atomic.AddInt64(&videoCacheSeq, 1), 36)
+	videoCache.Store(key, doc)
+	return key
+}
+func getCachedVideo(key string) *tg.Document {
+	v, ok := videoCache.Load(key)
+	if !ok {
+		return nil
+	}
+	return v.(*tg.Document)
+}
+
+func getDocName(doc *tg.Document) string {
+	for _, a := range doc.Attributes {
+		if f, ok := a.(*tg.DocumentAttributeFilename); ok {
+			return f.FileName
+		}
+	}
+	return "Video"
+}
 
 func handleStart(ctx *Context, u *Update) error {
 	chatID := getChatID(u)
@@ -194,6 +227,16 @@ func handleTextLink(ctx *Context, u *Update) error {
 	chatID := getChatID(u)
 	localizer := lang.GetLocalizer(userLang(u))
 
+	// Require user session for link resolution (needed for private channels).
+	if userAPI == nil {
+		ctx.SendMessage(chatID, &tg.MessagesSendMessageRequest{
+			Message: localizer.MustLocalize(&i18n.LocalizeConfig{
+				DefaultMessage: &i18n.Message{ID: "TgBotMsgLinkNeedLogin", Other: "Please scan the QR code in the Settings page first to access private channel videos."},
+			}),
+		})
+		return nil
+	}
+
 	// Resolve the message from the link
 	msg, err := resolveMessage(ctx, peer, msgID)
 	if err != nil {
@@ -232,26 +275,139 @@ func handleTextLink(ctx *Context, u *Update) error {
 
 	botLogger.Info("link resolved", zap.Int("total", len(msgs)), zap.Int("videos", len(videos)))
 
+	playText := localizer.MustLocalize(&i18n.LocalizeConfig{DefaultMessage: &i18n.Message{ID: "TgBotMsgPlay", Other: "▶️ Play"}})
 	for _, v := range videos {
 		doc, _ := v.Media.(*tg.MessageMediaDocument).Document.(*tg.Document)
-		inputDoc := &tg.InputDocument{}
-		inputDoc.FillFrom(doc)
-		_, err = ctx.SendMedia(chatID, &tg.MessagesSendMediaRequest{
-			Media: &tg.InputMediaDocument{ID: inputDoc},
+		key := cacheVideo(doc)
+		ctx.SendMessage(chatID, &tg.MessagesSendMessageRequest{
+			Message: fmt.Sprintf("%s\n🎬 %s", u.Message.Message, getDocName(doc)),
 			ReplyMarkup: &tg.ReplyInlineMarkup{
 				Rows: []tg.KeyboardButtonRow{{
 					Buttons: []tg.KeyboardButtonClass{
 						&tg.KeyboardButtonCallback{
-							Text:  localizer.MustLocalize(&i18n.LocalizeConfig{DefaultMessage: &i18n.Message{ID: "TgBotMsgPlay", Other: "▶️ Play"}}),
-							Data:  []byte(cbPlay),
+							Text: playText,
+							Data: append([]byte(cbCachedVideo), []byte(key)...),
 						},
-					}},
+					},
+				}},
+			},
+		})
+	}
+
+	return nil
+}
+
+// ── Cached video handlers (private channel links) ──
+
+// handleCbCachedVideo shows the device selector for a cached video.
+func handleCbCachedVideo(ctx *Context, u *Update) error {
+	chatID := getChatID(u)
+	localizer := lang.GetLocalizer(userLang(u))
+	key := string(u.CallbackQuery.Data[len(cbCachedVideo):])
+
+	ctx.EditMessage(chatID, &tg.MessagesEditMessageRequest{
+		ID:          u.CallbackQuery.MsgID,
+		ReplyMarkup: getCachedDevicesReplyInlineMarkup(localizer, key),
+	})
+	ctx.AnswerCallback(&tg.MessagesSetBotCallbackAnswerRequest{
+		QueryID: u.CallbackQuery.QueryID,
+	})
+	return nil
+}
+
+// handleCbCachedDevice plays a cached video on the selected device.
+func handleCbCachedDevice(ctx *Context, u *Update) error {
+	localizer := lang.GetLocalizer(userLang(u))
+	// Callback data: "CD-<key>:<hexMD5>"
+	rest := string(u.CallbackQuery.Data[len(cbCachedDevice):])
+	parts := strings.SplitN(rest, ":", 2)
+	if len(parts) != 2 {
+		return nil
+	}
+	key, targetHex := parts[0], parts[1]
+
+	av1Clients, _, _ := av1.NewAVTransport1Clients()
+	for _, c := range av1Clients {
+		md5sum := md5.Sum([]byte(c.ServiceClient.RootDevice.URLBase.Host))
+		if fmt.Sprintf("%x", md5sum) != targetHex {
+			continue
+		}
+		doc := getCachedVideo(key)
+		if doc == nil {
+			botLogger.Warn("cached video expired", zap.String("key", key))
+			ctx.AnswerCallback(&tg.MessagesSetBotCallbackAnswerRequest{
+				Alert:   true,
+				QueryID: u.CallbackQuery.QueryID,
+				Message: localizer.MustLocalize(&i18n.LocalizeConfig{DefaultMessage: &i18n.Message{ID: "TgBotMsgDeviceUnavailable", Other: "The playback device is unavailable, please refresh first"}}),
+			})
+			return nil
+		}
+		if err := playCachedVideo(ctx, c, u, doc); err != nil {
+			botLogger.Error("play cached video error", zap.Error(err))
+		}
+		ctx.AnswerCallback(&tg.MessagesSetBotCallbackAnswerRequest{
+			Alert:   false,
+			QueryID: u.CallbackQuery.QueryID,
+			Message: localizer.MustLocalize(&i18n.LocalizeConfig{DefaultMessage: &i18n.Message{ID: "TgBotMsgVideoPlayed", Other: "Video has started playing"}}),
+		})
+		return nil
+	}
+
+	botLogger.Warn("no upnp device for cached video")
+	ctx.AnswerCallback(&tg.MessagesSetBotCallbackAnswerRequest{
+		Alert:   true,
+		QueryID: u.CallbackQuery.QueryID,
+		Message: localizer.MustLocalize(&i18n.LocalizeConfig{DefaultMessage: &i18n.Message{ID: "TgBotMsgDeviceUnavailable", Other: "The playback device is unavailable, please refresh first"}}),
+	})
+	return nil
+}
+
+// getCachedDevicesReplyInlineMarkup builds the device selector with a cache key.
+func getCachedDevicesReplyInlineMarkup(localizer *i18n.Localizer, key string) *tg.ReplyInlineMarkup {
+	av1Clients, _, _ := av1.NewAVTransport1Clients()
+	rows := make([]tg.KeyboardButtonRow, 0, len(av1Clients)+1)
+	for _, c := range av1Clients {
+		md5sum := md5.Sum([]byte(c.ServiceClient.RootDevice.URLBase.Host))
+		rows = append(rows, tg.KeyboardButtonRow{
+			Buttons: []tg.KeyboardButtonClass{
+				&tg.KeyboardButtonCallback{
+					Text: "▶️ " + c.ServiceClient.RootDevice.Device.FriendlyName,
+					Data: []byte(fmt.Sprintf("%s%s:%x", cbCachedDevice, key, md5sum)),
 				},
 			},
 		})
-		if err != nil {
-			botLogger.Error("send link video error", zap.Error(err))
-		}
+	}
+	rows = append(rows, tg.KeyboardButtonRow{
+		Buttons: []tg.KeyboardButtonClass{
+			&tg.KeyboardButtonCallback{
+				Text: localizer.MustLocalize(&i18n.LocalizeConfig{DefaultMessage: &i18n.Message{ID: "TgBotMsgRefresh", Other: "🔄 Refresh"}}),
+				Data: append([]byte(cbCachedVideo), []byte(key)...),
+			},
+		},
+	})
+	return &tg.ReplyInlineMarkup{Rows: rows}
+}
+
+// playCachedVideo plays a cached document (from private channel link) on the device.
+func playCachedVideo(ctx *Context, avClient *av1.AVTransport1, u *Update, doc *tg.Document) error {
+	videoURL, tgVideoID, err := server.GetTgVideoPlayUrl(&server.TgVideo{Doc: doc, UseUserAPI: true}, avClient.LocalAddr())
+	if err != nil {
+		return fmt.Errorf("get video url: %w", err)
+	}
+	metadata := upnp.GetMetaData(getDocName(doc), tgVideoID, doc)
+	botLogger.Info("playing cached video",
+		zap.String("url", videoURL),
+		zap.String("device", avClient.ServiceClient.RootDevice.Device.FriendlyName),
+	)
+
+	if err := avClient.Stop(0); err != nil {
+		botLogger.Warn("upnp stop failed", zap.Error(err))
+	}
+	if err := avClient.SetAVTransportURI(0, videoURL, metadata); err != nil {
+		return fmt.Errorf("upnp SetAVTransportURI: %w", err)
+	}
+	if err := avClient.Play(0, "1"); err != nil {
+		return fmt.Errorf("upnp Play: %w", err)
 	}
 	return nil
 }
@@ -279,6 +435,11 @@ func filterVideoMessages(msgs []*tg.Message) []*tg.Message {
 
 // resolveMessageGroup fetches all messages in the same media group as the target.
 func resolveMessageGroup(ctx *Context, peer string, msgID int, target *tg.Message) []*tg.Message {
+	usingUser := userAPI != nil
+	if usingUser {
+		ctx.Raw = userAPI
+		defer func() { ctx.Raw = botAPI }()
+	}
 	groupedID, _ := target.GetGroupedID()
 	batch := 20
 
@@ -289,7 +450,7 @@ func resolveMessageGroup(ctx *Context, peer string, msgID int, target *tg.Messag
 			Channel: &tg.InputChannel{ChannelID: channelID, AccessHash: 0},
 			ID:      buildMsgIDRange(msgID, batch),
 		})
-		botLogger.Info("group fetch for c/ channel", zap.Int("msgID", msgID), zap.Int64("groupedID", groupedID), zap.Error(err))
+		botLogger.Info("group fetch for c/ channel", zap.Int("msgID", msgID), zap.Int64("groupedID", groupedID), zap.Bool("usingUserAPI", usingUser), zap.Error(err))
 		if err == nil {
 			if v, ok := r.(*tg.MessagesChannelMessages); ok {
 				botLogger.Info("group fetch result", zap.Int("count", len(v.Messages)))
@@ -312,11 +473,12 @@ func resolveMessageGroup(ctx *Context, peer string, msgID int, target *tg.Messag
 			return []*tg.Message{target}
 		}
 		if ch, ok := r.Peer.(*tg.PeerChannel); ok {
+			accessHash := extractAccessHash(r, ch.ChannelID)
 			h, err := ctx.Raw.ChannelsGetMessages(ctx.ctx, &tg.ChannelsGetMessagesRequest{
-				Channel: &tg.InputChannel{ChannelID: ch.ChannelID, AccessHash: 0},
+				Channel: &tg.InputChannel{ChannelID: ch.ChannelID, AccessHash: accessHash},
 				ID:      buildMsgIDRange(msgID, batch),
 			})
-			botLogger.Info("group fetch for public channel", zap.Int("msgID", msgID), zap.Int64("groupedID", groupedID), zap.Error(err))
+			botLogger.Info("group fetch for channel", zap.Int("msgID", msgID), zap.Int64("groupedID", groupedID), zap.Bool("usingUserAPI", usingUser), zap.Error(err))
 			if err == nil {
 				if v, ok := h.(*tg.MessagesChannelMessages); ok {
 					botLogger.Info("group fetch result", zap.Int("count", len(v.Messages)))
@@ -354,10 +516,33 @@ func buildMsgIDRange(center, count int) []tg.InputMessageClass {
 	return ids
 }
 
+// extractAccessHash pulls the access_hash for a channel from a ContactsResolvedPeer.
+func extractAccessHash(r *tg.ContactsResolvedPeer, channelID int64) int64 {
+	for _, chat := range r.Chats {
+		if c, ok := chat.(*tg.Channel); ok && c.ID == channelID {
+			return c.AccessHash
+		}
+	}
+	return 0
+}
+
 // resolveMessage fetches a message by link: username/msgID or c/channelID/msgID.
+// Uses user session if available, otherwise falls back to bot session.
 func resolveMessage(ctx *Context, peer string, msgID int) (*tg.Message, error) {
+	// Prefer user API for accessing restricted channels
+	usingUser := userAPI != nil
+	if usingUser {
+		ctx.Raw = userAPI
+		defer func() { ctx.Raw = botAPI }()
+	}
+	botLogger.Info("resolveMessage",
+		zap.String("peer", peer),
+		zap.Int("msgID", msgID),
+		zap.Bool("usingUserAPI", usingUser),
+	)
+
 	if strings.HasPrefix(peer, "c/") {
-		// Private channel: format c/channelID/msgID
+		// Private channel by ID: c/channelID/msgID
 		channelID, err := strconv.ParseInt(peer[2:], 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("invalid channel ID: %w", err)
@@ -379,15 +564,16 @@ func resolveMessage(ctx *Context, peer string, msgID int) (*tg.Message, error) {
 		return nil, fmt.Errorf("message not found")
 	}
 
-	// Public username
+	// Resolve by username
 	r, err := ctx.Raw.ContactsResolveUsername(ctx.ctx, &tg.ContactsResolveUsernameRequest{Username: peer})
 	if err != nil {
 		return nil, fmt.Errorf("resolve username: %w", err)
 	}
 	// Use channel API for channels/supergroups
 	if ch, ok := r.Peer.(*tg.PeerChannel); ok {
+		accessHash := extractAccessHash(r, ch.ChannelID)
 		c, err := ctx.Raw.ChannelsGetMessages(ctx.ctx, &tg.ChannelsGetMessagesRequest{
-			Channel: &tg.InputChannel{ChannelID: ch.ChannelID, AccessHash: 0},
+			Channel: &tg.InputChannel{ChannelID: ch.ChannelID, AccessHash: accessHash},
 			ID:      []tg.InputMessageClass{&tg.InputMessageID{ID: msgID}},
 		})
 		if err != nil {

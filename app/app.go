@@ -56,7 +56,18 @@ func New() *App {
 		}
 	}
 
-	config.GetConfig(logger)
+	if err := config.GetConfig(logger); err != nil {
+		logger.Error("Configuration error, opening setup wizard", zap.Error(err))
+		fmt.Printf("Configuration error: %v\nOpening setup wizard on http://127.0.0.1:%d\n", err, httpPort)
+		if err := setup.Run(httpPort, lang.GetSetupStrings()); err != nil {
+			fmt.Fprintln(os.Stderr, "Setup failed:", err)
+			os.Exit(1)
+		}
+		// Reload config after setup
+		if err := config.GetConfig(logger); err != nil {
+			logger.Fatal("Configuration still incomplete after setup", zap.Error(err))
+		}
+	}
 	if p := viper.GetInt(config.HttpPort); p != 0 {
 		httpPort = p
 	}
@@ -67,8 +78,10 @@ func New() *App {
 		viper.GetInt(config.AppID),
 		viper.GetString(config.ApiHash),
 		viper.GetString(config.BotToken),
+		viper.GetString(config.UserSession),
 		".",
 		viper.GetIntSlice(config.AdminIDs),
+		viper.GetBool(config.AutoAdmin),
 		logger,
 	)
 

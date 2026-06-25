@@ -192,7 +192,7 @@ func extractUpdates(upd tg.UpdatesClass) []Update {
 			Message: &tg.Message{
 				ID: v.ID, Message: v.Message,
 				PeerID: &tg.PeerUser{UserID: v.UserID},
-				Date: v.Date, Out: v.Out,
+				Date:   v.Date, Out: v.Out,
 			},
 			UserID: v.UserID,
 		})
@@ -201,7 +201,7 @@ func extractUpdates(upd tg.UpdatesClass) []Update {
 			Message: &tg.Message{
 				ID: v.ID, Message: v.Message,
 				PeerID: &tg.PeerChat{ChatID: v.ChatID},
-				Date: v.Date, Out: v.Out,
+				Date:   v.Date, Out: v.Out,
 			},
 			UserID: v.FromID,
 		})

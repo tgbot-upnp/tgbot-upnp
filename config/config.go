@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/viper"
@@ -9,14 +10,16 @@ import (
 )
 
 const (
-	EnvPrefix = "TGBOT_UPNP"
-	AppID     = "APP_ID"
-	ApiHash   = "API_HASH"
-	BotToken  = "BOT_TOKEN"
-	AdminID   = "ADMIN_ID"
-	AdminIDs  = "ADMIN_IDS"
-	HttpPort  = "HTTP_PORT"
-	BaseURL   = "BASE_URL"
+	EnvPrefix   = "TGBOT_UPNP"
+	AppID       = "APP_ID"
+	ApiHash     = "API_HASH"
+	BotToken    = "BOT_TOKEN"
+	AdminID     = "ADMIN_ID"
+	AdminIDs    = "ADMIN_IDS"
+	HttpPort    = "HTTP_PORT"
+	BaseURL     = "BASE_URL"
+	UserSession = "USER_SESSION"
+	AutoAdmin   = "AUTO_ADMIN"
 )
 
 // NeedsSetup returns true if no config file exists AND the required
@@ -33,10 +36,10 @@ func NeedsSetup() bool {
 	return v.GetInt(AppID) == 0 ||
 		v.GetString(ApiHash) == "" ||
 		v.GetString(BotToken) == "" ||
-		v.GetString(AdminID) == ""
+		(v.GetString(AdminID) == "" && !v.GetBool(AutoAdmin))
 }
 
-func GetConfig(logger *zap.Logger) {
+func GetConfig(logger *zap.Logger) error {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
@@ -45,16 +48,17 @@ func GetConfig(logger *zap.Logger) {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			logger.Info("Configuration file not exist,use environment variables", zap.String("err", err.Error()))
 		} else {
-			logger.Info("Configuration file read error,use environment variables", zap.String("err", err.Error()))
+			logger.Error("Configuration file read error,use environment variables", zap.String("err", err.Error()))
 		}
 	}
 	viper.SetEnvPrefix(EnvPrefix)
 	viper.AutomaticEnv()
-	if viper.GetInt(AppID) == 0 || viper.GetString(ApiHash) == "" || viper.GetString(BotToken) == "" || viper.GetString(AdminID) == "" {
-		logger.Fatal("Configuration is incomplete,please check")
+	if viper.GetInt(AppID) == 0 || viper.GetString(ApiHash) == "" || viper.GetString(BotToken) == "" {
+		return fmt.Errorf("configuration incomplete: app_id, api_hash, and bot_token are required")
+	}
+	if viper.GetString(AdminID) == "" && !viper.GetBool(AutoAdmin) {
+		return fmt.Errorf("admin_id is required when auto_admin is disabled")
 	}
 	viper.Set(AdminIDs, strings.Split(viper.GetString(AdminID), ","))
-	if len(viper.GetIntSlice(AdminIDs)) == 0 {
-		logger.Fatal("Admin ID is incomplete,please check")
-	}
+	return nil
 }

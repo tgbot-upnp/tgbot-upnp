@@ -13,9 +13,11 @@ tgbot-upnp is a Telegram bot that casts videos to UPnP-enabled devices via strea
 - Low memory and CPU usage
 - Built-in credential presets — no Telegram API registration needed
 - Browser-based config page for easy setup
-- System tray menu (Windows)
-- Support video links (`t.me/channel/msgID`)
-- Docker support with data persistence
+- System tray menu (Windows / macOS)
+- QR code login for private channel access
+- Support video links (`t.me/channel/msgID`), including private channels
+- Auto-admin: QR-scanned user automatically granted admin access
+- Docker support with data persistence and multi-arch images
 
 ## Quick Start
 
@@ -34,9 +36,11 @@ Edit `config.yml`:
 app_id: 2040                          # or your own from my.telegram.org/apps
 api_hash: b18441a1ff607e10a989891a5462e627
 bot_token: 123456:ABC-DEF1234...
-admin_id: 123456789                   # or 123456,789012 for multiple
+admin_id: 123456789                   # or 123456,789012 for multiple; optional if auto_admin is true
+auto_admin: true                      # auto-set QR-scanned user as admin
 http_port: 8080
 base_url: ""                          # optional: http://your-proxy.com:8080
+user_session: ""                      # auto-filled by QR login
 ```
 
 ### macOS
@@ -80,18 +84,21 @@ docker pull ghcr.io/tgbot-upnp/tgbot-upnp:latest
 | `TGBOT_UPNP_APP_ID` | API ID (use 2040 for built-in Telegram Desktop) |
 | `TGBOT_UPNP_API_HASH` | API hash |
 | `TGBOT_UPNP_BOT_TOKEN` | Bot token from @BotFather |
-| `TGBOT_UPNP_ADMIN_ID` | Admin user ID(s), comma-separated |
+| `TGBOT_UPNP_ADMIN_ID` | Admin user ID(s), comma-separated (optional if `AUTO_ADMIN` is set) |
+| `TGBOT_UPNP_AUTO_ADMIN` | Auto-set QR-scanned user as admin (default: false) |
 | `TGBOT_UPNP_HTTP_PORT` | HTTP server port (default: 8080) |
 | `TGBOT_UPNP_BASE_URL` | Custom base URL for reverse proxy (optional) |
+| `TGBOT_UPNP_USER_SESSION` | User session for private channel access (auto-filled by QR login) |
 | `TGBOT_UPNP_DATA_DIR` | Data directory for config and session (default: `.`) |
 
 ## Usage
 
 1. Send a video to the bot in Telegram
 2. Click ▶️ Play and select your UPnP device
-3. Or send a message link: `https://t.me/channel_name/12345`
+3. Or send a message link: `https://t.me/channel_name/12345` (public or private channels)
+4. For private channels, scan the QR code in the Settings page first to log in
 
-The system tray icon (Windows) provides quick access to usage help, config page, and quit.
+The system tray icon (Windows / macOS) provides quick access to usage help, config page, and quit.
 
 ## Tested Environments
 

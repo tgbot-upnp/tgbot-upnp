@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -27,13 +28,17 @@ const (
 	cmdStart         = "start"
 	cbPlay           = "Play"
 	cbPlayWithDevice = "P-"
+	cbCachedVideo    = "CV-"
+	cbCachedDevice   = "CD-"
 )
 
 var botLogger *zap.Logger
 var botAPI *tg.Client
+var autoAdminUserID atomic.Int64
 
-func Run(ctx context.Context, appID int, apiHash, botToken, sessionDir string, adminIDs []int, log *zap.Logger) error {
+func Run(ctx context.Context, appID int, apiHash, botToken, userSession, sessionDir string, adminIDs []int, autoAdmin bool, log *zap.Logger) error {
 	botLogger = log
+	createUserClient(ctx, appID, apiHash, userSession, autoAdmin)
 
 	sessionPath := filepath.Join(sessionDir, "tgbot-upnp.session")
 	sess := newFileSession(sessionPath)
@@ -45,6 +50,8 @@ func Run(ctx context.Context, appID int, apiHash, botToken, sessionDir string, a
 	disp.AddMessageText("t.me/", handleTextLink)
 	disp.AddCallbackExact(cbPlay, handleCbPlay)
 	disp.AddCallbackPrefix(cbPlayWithDevice, handleCbPlayWithDevice)
+	disp.AddCallbackPrefix(cbCachedVideo, handleCbCachedVideo)
+	disp.AddCallbackPrefix(cbCachedDevice, handleCbCachedDevice)
 
 	client := telegram.NewClient(appID, apiHash, telegram.Options{
 		Resolver: dcs.Plain(dcs.PlainOptions{Dial: proxy.Direct.DialContext}),
@@ -86,6 +93,7 @@ func Run(ctx context.Context, appID int, apiHash, botToken, sessionDir string, a
 
 		pool := dcpool.New(client, 4, botLogger, retry.New(5, botLogger))
 		server.SetPool(pool)
+		botLogger.Info("dc pool initialized")
 		setBotInfo(client.API())
 		setBotCommands(client.API())
 
@@ -95,14 +103,19 @@ func Run(ctx context.Context, appID int, apiHash, botToken, sessionDir string, a
 }
 
 func authBot(ctx context.Context, client *telegram.Client, token string) error {
+	botLogger.Info("checking auth status")
 	status, err := client.Auth().Status(ctx)
 	if err != nil {
+		botLogger.Warn("auth status check failed", zap.Error(err))
 		return fmt.Errorf("auth status: %w", err)
 	}
 	if !status.Authorized {
+		botLogger.Info("performing bot login")
 		if _, err := client.Auth().Bot(ctx, token); err != nil {
+			botLogger.Error("bot login failed", zap.Error(err))
 			return fmt.Errorf("bot login: %w", err)
 		}
+		botLogger.Info("bot login success")
 	}
 	return nil
 }
@@ -163,7 +176,7 @@ func authMiddleware(adminIDs []int) MiddlewareFunc {
 			botLogger.Info("update from non-user chat, ignoring")
 			return ErrStopDispatch
 		}
-		if !slices.Contains(adminIDs, int(chatID)) {
+		if !slices.Contains(adminIDs, int(chatID)) && int64(chatID) != autoAdminUserID.Load() {
 			botLogger.Info("non-admin access", zap.Int64("userID", chatID))
 			localizer := lang.GetLocalizer(userLang(u))
 			ctx.SendMessage(chatID, &tg.MessagesSendMessageRequest{

@@ -29,14 +29,16 @@ import (
 const partSize = 1024 * 1024
 
 type TgVideo struct {
-	Doc *tg.Document
-	ID  string
+	Doc        *tg.Document
+	ID         string
+	UseUserAPI bool // true if this video needs user session to download
 }
 
 var tgVideos = make(map[string]*TgVideo)
 var httpPort int
 var logger *zap.Logger
 var downloadPool *dcpool.Pool
+var userAPIClient *tg.Client
 var httpServer *http.Server
 
 // SetPool injects the DC connection pool for file downloads.
@@ -45,14 +47,22 @@ func SetPool(p *dcpool.Pool) {
 	downloadPool = p
 }
 
+// SetUserAPI injects the user-session API client for restricted file downloads.
+func SetUserAPI(c *tg.Client) {
+	userAPIClient = c
+}
+
 func Server(port int, globalLogger *zap.Logger, translations lang.SetupStrings) {
 	httpPort = port
 	logger = globalLogger
 
+	setup.SetQRLogger(logger)
 	setupHandler := setup.Handler(translations)
 	mux := http.NewServeMux()
 	mux.Handle("/", setupHandler)
 	mux.HandleFunc("/video/", video)
+	mux.HandleFunc("/qrcode", setup.HandleQRCode)
+	mux.HandleFunc("/qrcode-status", setup.HandleQRStatus)
 	httpServer = &http.Server{
 		Addr:        fmt.Sprintf(":%d", httpPort),
 		Handler:     mux,
@@ -69,9 +79,13 @@ func Server(port int, globalLogger *zap.Logger, translations lang.SetupStrings) 
 // Shutdown gracefully stops the HTTP server.
 func Shutdown() {
 	if httpServer != nil {
+		logger.Info("http server shutting down")
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = httpServer.Shutdown(ctx)
+		if err := httpServer.Shutdown(ctx); err != nil {
+			logger.Warn("http server shutdown error", zap.Error(err))
+		}
+		logger.Info("http server stopped")
 	}
 }
 func video(w http.ResponseWriter, r *http.Request) {
@@ -104,10 +118,12 @@ func GetTgVideoPlayUrl(tgVideo *TgVideo, avClientIP net.IP) (url, tgVideoID stri
 
 func (video *TgVideo) ServeFile(resp http.ResponseWriter, req *http.Request) {
 	var client *tg.Client
-	if downloadPool != nil {
+	if video.UseUserAPI && userAPIClient != nil {
+		client = userAPIClient
+	} else if downloadPool != nil {
 		client = downloadPool.Client(req.Context(), video.Doc.DCID)
 	} else {
-		logger.Warn("dcpool not initialized, falling back to default client")
+		logger.Warn("no client available, falling back to default")
 		client = tg.NewClient(nil)
 	}
 

@@ -21,12 +21,17 @@ type SetupStrings struct {
 	HTTPPort           string
 	BaseURL            string
 	BaseURLHint        string
+	UserSession        string
+	UserSessionHint    string
+	AutoAdmin          string
+	BtnScan            string
+	QRTitle            string
+	QRWaiting          string
+	QROK               string
 	BtnSave            string
 	Saved              string
 }
 
-// GetSetupStrings returns the setup page translations for the detected system language.
-// Must be called after GetI18nBundle has initialized the bundle.
 func GetSetupStrings() SetupStrings {
 	localizer := GetLocalizer(LocaleSystemTag)
 	return SetupStrings{
@@ -80,6 +85,27 @@ func GetSetupStrings() SetupStrings {
 		}),
 		BaseURLHint: localizer.MustLocalize(&i18n.LocalizeConfig{
 			DefaultMessage: &i18n.Message{ID: "SetupBaseURLHint", Other: "Reverse proxy address. Leave empty to auto-detect."},
+		}),
+		UserSession: localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{ID: "SetupUserSession", Other: "User Session (optional)"},
+		}),
+		UserSessionHint: localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{ID: "SetupUserSessionHint", Other: "Login with QR code to access private channel videos."},
+		}),
+		AutoAdmin: localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{ID: "SetupAutoAdmin", Other: "Auto-set logged-in user as admin"},
+		}),
+		BtnScan: localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{ID: "SetupBtnScan", Other: "📱 Scan QR"},
+		}),
+		QRTitle: localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{ID: "SetupQRTitle", Other: "Scan QR Code"},
+		}),
+		QRWaiting: localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{ID: "SetupQRWaiting", Other: "Open Telegram on your phone → Settings → Devices → Scan QR Code"},
+		}),
+		QROK: localizer.MustLocalize(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{ID: "SetupQROK", Other: "✅ Logged in!"},
 		}),
 		BtnSave: localizer.MustLocalize(&i18n.LocalizeConfig{
 			DefaultMessage: &i18n.Message{ID: "SetupBtnSave", Other: "💾 Save"},
